@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple FLC Test</title>
+    <script src="flc-db.js"></script>
+    <style>
+        body { background: #0b1120; color: white; font-family: monospace; padding: 20px; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        pre { background: #111827; padding: 15px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Simple FLC Test</h1>
+    <div id="result">Testing...</div>
+
+    <script>
+        async function test() {
+            const div = document.getElementById('result');
+            try {
+                const data = await loadData('bacenta');
+                if (data && data.length > 0) {
+                    div.innerHTML = `
+                        <span class="success">✅ Success! Found ${data.length} records</span>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    div.innerHTML = '<span class="error">❌ No data returned</span>';
+                }
+            } catch (e) {
+                div.innerHTML = `<span class="error">❌ Error: ${e.message}</span>`;
+            }
+        }
+        test();
+    </script>
+</body>
+</html>

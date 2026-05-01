@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Governorships - FLC Ruiru Campus</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0b1120;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 28px;
+            overflow: hidden;
+            background: #0a2540;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #2c6280;
+        }
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #ffffff, #8ab3ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .panel {
+            background: #111827;
+            padding: 20px;
+            border-radius: 20px;
+            flex: 1;
+            min-width: 280px;
+        }
+        .access-badge {
+            background: #164e2e;
+            padding: 0.4rem 1.2rem;
+            border-radius: 3rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .access-badge.test-mode {
+            background: #fbbf24;
+            color: #0b1120;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: #0f172a;
+            color: white;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover { background: #1e40af; }
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            overflow-x: auto;
+            display: block;
+        }
+        td, th {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .governorship-table th {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: #fbbf24;
+            padding: 12px;
+            text-align: left;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .filter-bar select {
+            flex: 1;
+            min-width: 200px;
+            margin-top: 0;
+        }
+        .chart-container {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .lock-message {
+            text-align: center;
+            padding: 40px;
+            background: #1e1e2f;
+            border-radius: 10px;
+            color: #fbbf24;
+        }
+        .submission-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .toggle-btn {
+            flex: 1;
+            background: #1e293b;
+            border: 1px solid #334155;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .toggle-btn.active {
+            background: #2563eb;
+        }
+        .success-msg {
+            color: #10b981;
+            background: #064e3b;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .error-msg {
+            color: #ef4444;
+            background: #7f1d1d;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stats-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 15px;
+            flex: 1;
+            border-left: 4px solid #fbbf24;
+        }
+        .stat-card h4 {
+            margin: 0 0 5px 0;
+            color: #9ca3af;
+            font-size: 0.8rem;
+        }
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
+        }
+        .preview-img {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #111827;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid #2c6280;
+        }
+        .modal-content h3 {
+            color: #fbbf24;
+            margin-bottom: 15px;
+        }
+        .summary-text {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-line;
+            margin: 15px 0;
+            border: 1px solid #334155;
+        }
+        .copy-btn {
+            background: #10b981;
+            width: 100%;
+        }
+        .copy-btn:hover {
+            background: #059669;
+        }
+        .close-modal-btn {
+            background: #4b5563;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .close-modal-btn:hover {
+            background: #374151;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .panel { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo-title">
+        <div class="logo">
+            <img src="logo.jpeg" alt="First Love Church" onerror="this.src='https://via.placeholder.com/48/0a2540/ffffff?text=FLC'">
+        </div>
+        <h2>Governorships | FLC-Ruiru Campus</h2>
+    </div>
+    <div>
+        <a href="index.html" style="color: white; margin-right: 15px;">Back</a>
+        <span class="access-badge" id="accessStatus">Checking...</span>
+    </div>
+</div>
+
+<div class="container">
+    <div class="panel" id="senderPanel">
+        <h3>Submit Governorship Report</h3>
+        <div id="formContainer"></div>
+        <p id="status" style="margin-top:10px;"></p>
+    </div>
+
+    <div class="panel">
+        <h3>Dashboard</h3>
+        <div class="filter-bar">
+            <select id="filterGovernorship">
+                <option value="">All Governorships</option>
+                <option>Juja Governorship</option>
+                <option>KU Governorship</option>
+                <option>Kiriri Governorship</option>
+            </select>
+            <button id="resetFilters">Reset</button>
+        </div>
+        
+        <div class="stats-container" id="statsContainer"></div>
+        
+        <div class="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+        
+        <button id="exportBtn">Export Excel</button>
+        
+        <div style="overflow-x: auto; margin-top: 20px;">
+            <table class="governorship-table">
+                <thead>
+                    <tr>
+                        <th>Governorship</th>
+                        <th>Pastor</th>
+                        <th>Preacher</th>
+                        <th>Midweek Att</th>
+                        <th>First Timers</th>
+                        <th>New Converts</th>
+                        <th>Offering</th>
+                        <th>Total Att</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>
+                </tbody>
+            <\/table>
+        <\/div>
+    <\/div>
+<\/div>
+
+<!-- Summary Modal -->
+<div id="summaryModal" class="modal">
+    <div class="modal-content">
+        <h3>Report Summary</h3>
+        <div id="summaryText" class="summary-text"></div>
+        <button id="copySummaryBtn" class="copy-btn">Copy to Clipboard</button>
+        <button id="closeModalBtn" class="close-modal-btn">Close</button>
+    </div>
+</div>
+
+<script>
+// Governorship Dashboard - With Correct Column Names
+const API_URL = 'https:\/\/script.google.com\/macros\/s\/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ\/exec';
+const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
+const TEST_MODE = false;
+
+let globalData = [];
+let filteredData = [];
+let chart;
+let currentFormType = 'midweek';
+
+function getEATTime() {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (3 * 3600000));
+}
+
+function formatDate() {
+    const d = getEATTime();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return day + '/' + month + '/' + year;
+}
+
+function getMonthName(monthIndex) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[monthIndex];
+}
+
+function isMidweekAllowed() {
+    if (TEST_MODE) return true;
+    const now = getEATTime();
+    const day = now.getDay();
+    const hour = now.getHours();
+    if (day === 4 && hour >= 20 && hour < 22) return true;
+    return false;
+}
+
+function isSundayAllowed() {
+    if (TEST_MODE) return true;
+    const now = getEATTime();
+    const day = now.getDay();
+    const hour = now.getHours();
+    if (day === 0 && hour >= 14 && hour < 18) return true;
+    return false;
+}
+
+function getCurrentAllowedType() {
+    if (isMidweekAllowed()) return "midweek";
+    if (isSundayAllowed()) return "sunday";
+    return null;
+}
+
+function updateAccessUI() {
+    const accessDiv = document.getElementById("accessStatus");
+    
+    if (TEST_MODE) {
+        accessDiv.innerHTML = 'TEST MODE - Both forms available';
+        accessDiv.style.background = "#fbbf24";
+        accessDiv.style.color = "#0b1120";
+        accessDiv.classList.add('test-mode');
+        return;
+    }
+    
+    const allowedType = getCurrentAllowedType();
+    
+    if (allowedType === "midweek") {
+        accessDiv.innerHTML = 'OPEN - Midweek (Thu 8-10pm)';
+        accessDiv.style.background = "#164e2e";
+        accessDiv.style.color = "white";
+    } else if (allowedType === "sunday") {
+        accessDiv.innerHTML = 'OPEN - Sunday (2-6pm)';
+        accessDiv.style.background = "#164e2e";
+        accessDiv.style.color = "white";
+    } else {
+        accessDiv.innerHTML = 'CLOSED - Thu 8-10pm & Sun 2-6pm EAT';
+        accessDiv.style.background = "#631e1e";
+        accessDiv.style.color = "white";
+    }
+}
+
+async function loadData() {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>';
+    
+    try {
+        const url = API_URL + '?action=read&type=governorship&sheet=Sheet1';
+        console.log('Fetching from:', url);
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        console.log('API Result:', result);
+        
+        if (result.success && result.data) {
+            globalData = result.data;
+            console.log('Loaded', globalData.length, 'records from Governorship sheet');
+        } else {
+            globalData = [];
+            console.log('No data found or error:', result.error);
+        }
+    } catch (error) {
+        console.error("Error loading data:", error);
+        globalData = [];
+    }
+    
+    applyFilters();
+}
+
+function applyFilters() {
+    const govFilter = document.getElementById("filterGovernorship").value;
+    
+    filteredData = [];
+    for (let i = 0; i < globalData.length; i++) {
+        const item = globalData[i];
+        const governorship = item.Governorship || "";
+        const matchesGov = (govFilter === "") || (governorship === govFilter);
+        if (matchesGov) {
+            filteredData.push(item);
+        }
+    }
+    
+    renderTable();
+    updateStats();
+    updateChart();
+}
+
+function renderTable() {
+    const tbody = document.getElementById("tableBody");
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">No data found<\/td><\/tr>';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < filteredData.length; i++) {
+        const d = filteredData[i];
+        
+        const governorship = escapeHtml(d.Governorship || '');
+        const pastor = escapeHtml(d.Pastor || '');
+        const preacher = escapeHtml(d.Preacher || '');
+        const midweekAtt = d['Midweek Attendance'] || 0;
+        const firstTimers = d['First Timers'] || 0;
+        const newConverts = d['New Converts'] || 0;
+        const offering = d.Offering || 0;
+        const totalAtt = d['Total Attendance'] || '-';
+        const dateText = d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '';
+        
+        html += '<tr>';
+        html += '<td>' + governorship + '<\/td>';
+        html += '<td>' + pastor + '<\/td>';
+        html += '<td>' + preacher + '<\/td>';
+        html += '<td>' + midweekAtt + '<\/td>';
+        html += '<td>' + firstTimers + '<\/td>';
+        html += '<td>' + newConverts + '<\/td>';
+        html += '<td>' + offering + '<\/td>';
+        html += '<td>' + totalAtt + '<\/td>';
+        html += '<td>' + dateText + '<\/td>';
+        html += '<\/tr>';
+    }
+    
+    tbody.innerHTML = html;
+}
+
+function updateStats() {
+    const statsContainer = document.getElementById("statsContainer");
+    
+    let totalMidweek = 0;
+    let totalSunday = 0;
+    let totalOffering = 0;
+    
+    for (let i = 0; i < filteredData.length; i++) {
+        const item = filteredData[i];
+        totalMidweek += item['Midweek Attendance'] || 0;
+        totalSunday += item['Total Attendance'] || 0;
+        totalOffering += item.Offering || 0;
+    }
+    
+    statsContainer.innerHTML = '<div class="stat-card"><h4>Total Midweek Attendance</h4><div class="value">' + totalMidweek + '</div></div><div class="stat-card"><h4>Total Sunday Attendance</h4><div class="value">' + totalSunday + '</div></div><div class="stat-card"><h4>Total Offering (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div>';
+}
+
+function updateChart() {
+    const ctx = document.getElementById("chart").getContext("2d");
+    if (chart) chart.destroy();
+    
+    if (filteredData.length === 0) {
+        chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] } });
+        return;
+    }
+    
+    const weekMap = new Map();
+    for (let i = 0; i < filteredData.length; i++) {
+        const item = filteredData[i];
+        let date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const week = Math.ceil(date.getDate() / 7);
+        const weekLabel = getMonthName(month) + ' Week ' + week;
+        
+        if (!weekMap.has(weekLabel)) {
+            weekMap.set(weekLabel, { midweek: 0, sunday: 0 });
+        }
+        const curr = weekMap.get(weekLabel);
+        curr.midweek += item['Midweek Attendance'] || 0;
+        curr.sunday += item['Total Attendance'] || 0;
+    }
+    
+    const sortedWeeks = Array.from(weekMap.keys()).sort();
+    const midweekData = [];
+    const sundayData = [];
+    
+    for (let i = 0; i < sortedWeeks.length; i++) {
+        const w = sortedWeeks[i];
+        midweekData.push(weekMap.get(w).midweek);
+        sundayData.push(weekMap.get(w).sunday);
+    }
+    
+    chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: sortedWeeks,
+            datasets: [
+                { label: 'Midweek Attendance', data: midweekData, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.2 },
+                { label: 'Sunday Attendance', data: sundayData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+function showSummaryModal(summaryText) {
+    const modal = document.getElementById('summaryModal');
+    const summaryDiv = document.getElementById('summaryText');
+    summaryDiv.innerText = summaryText;
+    modal.style.display = 'flex';
+}
+
+function setupModalButtons() {
+    const copyBtn = document.getElementById('copySummaryBtn');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const modal = document.getElementById('summaryModal');
+    
+    copyBtn.onclick = function() {
+        const summaryText = document.getElementById('summaryText').innerText;
+        navigator.clipboard.writeText(summaryText).then(function() {
+            copyBtn.innerText = 'Copied!';
+            setTimeout(function() {
+                copyBtn.innerText = 'Copy to Clipboard';
+            }, 2000);
+        });
+    };
+    
+    closeBtn.onclick = function() {
+        modal.style.display = 'none';
+    };
+    
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
+}
+
+function switchFormType(type) {
+    currentFormType = type;
+    renderFormByType();
+}
+
+async function uploadToImgBB(file) {
+    const formData = new FormData();
+    formData.append("image", file);
+    
+    const response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
+        method: "POST",
+        body: formData
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+        return result.data.url;
+    } else {
+        throw new Error("Image upload failed");
+    }
+}
+
+function renderFormByType() {
+    const container = document.getElementById("formContainer");
+    const allowedType = getCurrentAllowedType();
+    
+    if (!allowedType && !TEST_MODE) {
+        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Thursday 8:00 PM - 10:00 PM (Midweek)<br>Sunday 2:00 PM - 6:00 PM<br>EAT Timezone<\/div>';
+        return;
+    }
+    
+    if (currentFormType === "midweek") {
+        container.innerHTML = '<div class="submission-toggle"><div class="toggle-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Thu 8-10pm)</div><div class="toggle-btn" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Pastor Name</label><input type="text" id="pastorName" placeholder="Pastor Name" required><label>Preacher Name</label><input type="text" id="preacherName" placeholder="Preacher Name" required><label>Midweek Attendance</label><input type="number" id="midweekAttendance" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>Message Preached</label><input type="text" id="messagePreached" placeholder="Message Preached" required><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Crowd Photo</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
+    } else {
+        container.innerHTML = '<div class="submission-toggle"><div class="toggle-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Thu 8-10pm)</div><div class="toggle-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Bus Attendance</label><input type="number" id="busAttendance" value="0"><label>Walk-ins</label><input type="number" id="walkins" value="0"><label>Total First Timers</label><input type="number" id="totalFirstTimers" value="0"><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><button id="submitBtn">Submit Sunday Report</button>';
+    }
+    
+    const fileInput = document.getElementById("imageUpload");
+    if (fileInput) {
+        fileInput.onchange = function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById("imagePreview").innerHTML = '<img src="' + ev.target.result + '" class="preview-img">';
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
+    
+    document.getElementById("submitBtn").onclick = submitData;
+}
+
+function renderForm() {
+    renderFormByType();
+}
+
+async function submitData() {
+    const status = document.getElementById("status");
+    
+    if (currentFormType === "midweek") {
+        const governorship = document.getElementById("governorshipSelect").value;
+        const pastorName = document.getElementById("pastorName").value.trim();
+        const preacherName = document.getElementById("preacherName").value.trim();
+        const midweekAttendance = parseInt(document.getElementById("midweekAttendance").value) || 0;
+        const firstTimers = parseInt(document.getElementById("firstTimers").value) || 0;
+        const newConverts = parseInt(document.getElementById("newConverts").value) || 0;
+        const messagePreached = document.getElementById("messagePreached").value.trim();
+        const offering = parseInt(document.getElementById("offering").value) || 0;
+        
+        const fileInput = document.getElementById("imageUpload");
+        const file = fileInput ? fileInput.files[0] : null;
+        
+        if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+        if (!pastorName) { status.innerHTML = '<span class="error-msg">Pastor name required</span>'; return; }
+        if (!preacherName) { status.innerHTML = '<span class="error-msg">Preacher name required</span>'; return; }
+        if (!messagePreached) { status.innerHTML = '<span class="error-msg">Message preached required</span>'; return; }
+        
+        let imageUrl = "";
+        if (file) {
+            status.innerHTML = '<span style="color: #3b82f6;">Uploading image...</span>';
+            try {
+                imageUrl = await uploadToImgBB(file);
+            } catch (error) {
+                status.innerHTML = '<span class="error-msg">Image upload failed</span>';
+                return;
+            }
+        }
+        
+        status.innerHTML = '<span style="color: #3b82f6;">Submitting...</span>';
+        
+        const params = new URLSearchParams();
+        params.append('action', 'write');
+        params.append('type', 'governorship');
+        params.append('sheet', 'Sheet1');
+        params.append('Governorship', governorship);
+        params.append('Pastor', pastorName);
+        params.append('Preacher', preacherName);
+        params.append('Midweek Attendance', midweekAttendance);
+        params.append('First Timers', firstTimers);
+        params.append('New Converts', newConverts);
+        params.append('Message Preached', messagePreached);
+        params.append('Offering', offering);
+        params.append('Crowd Photo URL', imageUrl);
+        
+        const fullUrl = API_URL + '?' + params.toString();
+        
+        try {
+            const response = await fetch(fullUrl);
+            const text = await response.text();
+            
+            if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+                const currentDate = formatDate();
+                const summaryText = `Governorship: ${governorship}
+Pastor Name: ${pastorName}
+Preacher Name: ${preacherName}
+Date: ${currentDate}
+Midweek Attendance: ${midweekAttendance}
+First Timers: ${firstTimers}
+New Converts: ${newConverts}
+Message Preached: ${messagePreached}
+Offering: KES ${offering}`;
+                
+                showSummaryModal(summaryText);
+                
+                status.innerHTML = '<span class="success-msg">Midweek report submitted successfully!</span>';
+                document.getElementById("governorshipSelect").value = "";
+                document.getElementById("pastorName").value = "";
+                document.getElementById("preacherName").value = "";
+                document.getElementById("midweekAttendance").value = "0";
+                document.getElementById("firstTimers").value = "0";
+                document.getElementById("newConverts").value = "0";
+                document.getElementById("messagePreached").value = "";
+                document.getElementById("offering").value = "0";
+                if (fileInput) fileInput.value = "";
+                document.getElementById("imagePreview").innerHTML = "";
+                
+                setTimeout(async function() {
+                    await loadData();
+                    status.innerHTML = '';
+                }, 2000);
+            } else {
+                status.innerHTML = '<span class="error-msg">Submission failed</span>';
+            }
+        } catch (error) {
+            status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+        }
+        
+    } else {
+        const governorship = document.getElementById("governorshipSelect").value;
+        const busAttendance = parseInt(document.getElementById("busAttendance").value) || 0;
+        const walkins = parseInt(document.getElementById("walkins").value) || 0;
+        const totalFirstTimers = parseInt(document.getElementById("totalFirstTimers").value) || 0;
+        const totalAttendance = parseInt(document.getElementById("totalAttendance").value) || 0;
+        
+        if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+        
+        status.innerHTML = '<span style="color: #3b82f6;">Submitting...</span>';
+        
+        const params = new URLSearchParams();
+        params.append('action', 'write');
+        params.append('type', 'governorship');
+        params.append('sheet', 'Sheet1');
+        params.append('Governorship', governorship);
+        params.append('Bus Attendance', busAttendance);
+        params.append('Walk-ins', walkins);
+        params.append('Total First Timers', totalFirstTimers);
+        params.append('Total Attendance', totalAttendance);
+        
+        const fullUrl = API_URL + '?' + params.toString();
+        
+        try {
+            const response = await fetch(fullUrl);
+            const text = await response.text();
+            
+            if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+                const currentDate = formatDate();
+                const summaryText = `Governorship: ${governorship}
+Date: ${currentDate}
+Bus Attendance: ${busAttendance}
+Walk-ins: ${walkins}
+Total First Timers: ${totalFirstTimers}
+Total Attendance: ${totalAttendance}`;
+                
+                showSummaryModal(summaryText);
+                
+                status.innerHTML = '<span class="success-msg">Sunday report submitted successfully!</span>';
+                document.getElementById("governorshipSelect").value = "";
+                document.getElementById("busAttendance").value = "0";
+                document.getElementById("walkins").value = "0";
+                document.getElementById("totalFirstTimers").value = "0";
+                document.getElementById("totalAttendance").value = "0";
+                
+                setTimeout(async function() {
+                    await loadData();
+                    status.innerHTML = '';
+                }, 2000);
+            } else {
+                status.innerHTML = '<span class="error-msg">Submission failed</span>';
+            }
+        } catch (error) {
+            status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+        }
+    }
+}
+
+function exportToExcel() {
+    if (filteredData.length === 0) {
+        alert('No data to export!');
+        return;
+    }
+    
+    const exportData = [];
+    for (let i = 0; i < filteredData.length; i++) {
+        const d = filteredData[i];
+        exportData.push({
+            'Governorship': d.Governorship || '',
+            'Pastor': d.Pastor || '',
+            'Preacher': d.Preacher || '',
+            'Midweek Attendance': d['Midweek Attendance'] || 0,
+            'First Timers': d['First Timers'] || 0,
+            'New Converts': d['New Converts'] || 0,
+            'Message Preached': d['Message Preached'] || '',
+            'Offering': d.Offering || 0,
+            'Crowd Photo URL': d['Crowd Photo URL'] || '',
+            'Bus Attendance': d['Bus Attendance'] || 0,
+            'Walk-ins': d['Walk-ins'] || 0,
+            'Total First Timers': d['Total First Timers'] || 0,
+            'Total Attendance': d['Total Attendance'] || 0,
+            'Timestamp': d.Timestamp || ''
+        });
+    }
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Governorship_Data');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, 'Governorship_Reports_' + dateStr + '.xlsx');
+}
+
+document.getElementById("filterGovernorship")?.addEventListener("change", function() { applyFilters(); });
+document.getElementById("resetFilters")?.addEventListener("click", function() {
+    document.getElementById("filterGovernorship").value = "";
+    applyFilters();
+});
+document.getElementById("exportBtn")?.addEventListener("click", exportToExcel);
+
+window.switchFormType = switchFormType;
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+setupModalButtons();
+updateAccessUI();
+renderForm();
+loadData();
+setInterval(updateAccessUI, 60000);
+</script>
+</body>
+</html>

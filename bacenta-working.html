@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bacenta Fellowships - FLC Ruiru Campus</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0b1120;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 28px;
+            overflow: hidden;
+            background: #0a2540;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #2c6280;
+        }
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #ffffff, #8ab3ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .panel {
+            background: #111827;
+            padding: 20px;
+            border-radius: 20px;
+            flex: 1;
+            min-width: 280px;
+        }
+        .access-badge {
+            background: #164e2e;
+            padding: 0.4rem 1.2rem;
+            border-radius: 3rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .access-badge.closed {
+            background: #631e1e;
+        }
+        .access-badge.test-mode {
+            background: #fbbf24;
+            color: #0b1120;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: #0f172a;
+            color: white;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background: #1e40af; }
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            overflow-x: auto;
+            display: block;
+        }
+        td, th {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .filter-bar input, .filter-bar select {
+            flex: 1;
+            min-width: 120px;
+            margin-top: 0;
+        }
+        .chart-container {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .lock-message {
+            text-align: center;
+            padding: 40px;
+            background: #1e1e2f;
+            border-radius: 10px;
+            color: #fbbf24;
+        }
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .chart-controls button {
+            margin-top: 0;
+            padding: 8px 16px;
+            background: #1e293b;
+        }
+        .chart-controls button.active {
+            background: #2563eb;
+        }
+        .success-msg {
+            color: #10b981;
+            background: #064e3b;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .error-msg {
+            color: #ef4444;
+            background: #7f1d1d;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .preview-img {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #111827;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid #2c6280;
+        }
+        .modal-content h3 {
+            color: #fbbf24;
+            margin-bottom: 15px;
+        }
+        .summary-text {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-line;
+            margin: 15px 0;
+            border: 1px solid #334155;
+        }
+        .copy-btn {
+            background: #10b981;
+            width: 100%;
+        }
+        .copy-btn:hover {
+            background: #059669;
+        }
+        .close-modal-btn {
+            background: #4b5563;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .close-modal-btn:hover {
+            background: #374151;
+        }
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .panel { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo-title">
+        <div class="logo">
+            <img src="logo.jpeg" alt="First Love Church" onerror="this.src='https://via.placeholder.com/48/0a2540/ffffff?text=FLC'">
+        </div>
+        <h2>Bacenta Fellowships | FLC-Ruiru Campus</h2>
+    </div>
+    <div>
+        <a href="index.html" style="color: white; margin-right: 15px;">Back</a>
+        <span class="access-badge" id="accessStatus">Checking...</span>
+    </div>
+</div>
+
+<div class="container">
+    <div class="panel" id="senderPanel">
+        <h3>Submit Fellowship Report</h3>
+        <div id="formContainer"></div>
+        <p id="status" style="margin-top:10px;"></p>
+    </div>
+
+    <div class="panel">
+        <h3>Dashboard</h3>
+        <div class="filter-bar">
+            <input type="text" id="searchLeader" placeholder="Search leader...">
+            <select id="filterGovernorship">
+                <option value="">All Governorships</option>
+                <option>Juja Governorship</option>
+                <option>KU Governorship</option>
+                <option>Kiriri Governorship</option>
+            </select>
+            <button id="resetFilters">Reset</button>
+        </div>
+        
+        <div class="chart-controls">
+            <button id="viewOverall" class="active">Overall</button>
+            <button id="viewByGovernorship">By Governorship</button>
+            <button id="viewByLeader">By Leader</button>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+        
+        <button id="exportBtn">Export Excel</button>
+        
+        <div style="overflow-x: auto; margin-top: 20px;">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th>Leader</th>
+                        <th>Governorship</th>
+                        <th>Fellowship</th>
+                        <th>Service</th>
+                        <th>Offering</th>
+                        <th>Photo</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="7" style="text-align:center">Loading data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Modal -->
+<div id="summaryModal" class="modal">
+    <div class="modal-content">
+        <h3>Report Summary</h3>
+        <div id="summaryText" class="summary-text"></div>
+        <button id="copySummaryBtn" class="copy-btn">Copy to Clipboard</button>
+        <button id="closeModalBtn" class="close-modal-btn">Close</button>
+    </div>
+</div>
+
+<script>
+// Bacenta Dashboard - Working Version with Summary Modal
+const API_URL = 'https://script.google.com/macros/s/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ/exec';
+const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
+const TEST_MODE = false;
+
+let globalData = [];
+let filteredData = [];
+let currentChartView = "overall";
+let chart;
+
+const LEADERS_BY_GOV = {
+    "Juja Governorship": ["Evans Okumu", "Paul Webi", "Deborah Njorogex", "Friend Mwaura"],
+    "Kiriri Governorship": ["Stella Njambi", "Charisma Angel", "Perkins Katisa", "Tanyasis"],
+    "KU Governorship": ["Joseph Misunga", "Austin Peter", "Beatrice Mueni", "George Gute", "Omaset Linda", "Edwin Omondi", "Abigail Mbogo"]
+};
+
+function getEATTime() {
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    return new Date(utc + (3 * 3600000));
+}
+
+function formatDate(date) {
+    const d = date || getEATTime();
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return day + '/' + month + '/' + year;
+}
+
+function isBacentaSubmissionAllowed() {
+    if (TEST_MODE) return true;
+    const now = getEATTime();
+    const day = now.getDay();
+    const hour = now.getHours();
+    if (day === 5 && hour >= 18 && hour < 21) return true;
+    if (day === 0 && hour >= 14 && hour < 18) return true;
+    return false;
+}
+
+function updateAccessUI() {
+    const accessDiv = document.getElementById("accessStatus");
+    const allowed = isBacentaSubmissionAllowed();
+    
+    if (TEST_MODE) {
+        accessDiv.innerHTML = 'TEST MODE - Submissions Open';
+        accessDiv.style.background = "#fbbf24";
+        accessDiv.style.color = "#0b1120";
+        accessDiv.classList.add('test-mode');
+        return;
+    }
+    
+    if (allowed) {
+        accessDiv.innerHTML = 'OPEN - Fri 6-9pm & Sun 2-6pm';
+        accessDiv.style.background = "#164e2e";
+        accessDiv.style.color = "white";
+    } else {
+        accessDiv.innerHTML = 'CLOSED - Fri 6-9pm & Sun 2-6pm EAT';
+        accessDiv.style.background = "#631e1e";
+        accessDiv.style.color = "white";
+    }
+}
+
+async function loadData() {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Loading data...</td></tr>';
+    
+    try {
+        const url = API_URL + '?action=read&type=bacenta&sheet=Sheet1';
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            globalData = result.data;
+            console.log('Loaded', globalData.length, 'records');
+        } else {
+            globalData = [];
+        }
+    } catch (error) {
+        console.error("Error loading data:", error);
+        globalData = [];
+    }
+    
+    applyFilters();
+}
+
+function applyFilters() {
+    const searchTerm = document.getElementById("searchLeader").value.toLowerCase();
+    const govFilter = document.getElementById("filterGovernorship").value;
+    
+    filteredData = [];
+    for (let i = 0; i < globalData.length; i++) {
+        const item = globalData[i];
+        const leader = (item.Leader || "").toLowerCase();
+        const governorship = item.Governorship || "";
+        const matchesLeader = leader.indexOf(searchTerm) !== -1;
+        const matchesGov = (govFilter === "") || (governorship === govFilter);
+        if (matchesLeader && matchesGov) {
+            filteredData.push(item);
+        }
+    }
+    
+    renderTable();
+    updateChart();
+}
+
+function renderTable() {
+    const tbody = document.getElementById("tableBody");
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">No data found</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < filteredData.length; i++) {
+        const d = filteredData[i];
+        html += '<tr>';
+        html += '<td>' + escapeHtml(d.Leader || '') + '</td>';
+        html += '<td>' + escapeHtml(d.Governorship || '') + '</td>';
+        html += '<td>' + (d['Fellowship Attendance'] || 0) + '</td>';
+        html += '<td>' + (d['Service Attendance'] || 0) + '</td>';
+        html += '<td>' + (d.Offering || 0) + '</td>';
+        html += '<td>' + (d['Selfie URL'] ? 'Yes' : '') + '</td>';
+        html += '<td>' + (d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '') + '</td>';
+        html += '</tr>';
+    }
+    
+    tbody.innerHTML = html;
+}
+
+function updateChart() {
+    const ctx = document.getElementById("chart").getContext("2d");
+    if (chart) chart.destroy();
+    
+    if (filteredData.length === 0) {
+        chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] } });
+        return;
+    }
+    
+    if (currentChartView === "overall") {
+        const dateMap = new Map();
+        for (let i = 0; i < filteredData.length; i++) {
+            const item = filteredData[i];
+            const date = item.Timestamp ? item.Timestamp.split('T')[0] : 'Unknown';
+            if (!dateMap.has(date)) {
+                dateMap.set(date, { fellowship: 0, service: 0 });
+            }
+            const curr = dateMap.get(date);
+            curr.fellowship += item['Fellowship Attendance'] || 0;
+            curr.service += item['Service Attendance'] || 0;
+        }
+        
+        const sortedDates = Array.from(dateMap.keys()).sort();
+        const fellowshipData = [];
+        const serviceData = [];
+        for (let i = 0; i < sortedDates.length; i++) {
+            const d = sortedDates[i];
+            fellowshipData.push(dateMap.get(d).fellowship);
+            serviceData.push(dateMap.get(d).service);
+        }
+        
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedDates,
+                datasets: [
+                    { label: 'Fellowship Attendance', data: fellowshipData, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.2 },
+                    { label: 'Service Attendance', data: serviceData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        
+    } else if (currentChartView === "byGovernorship") {
+        const govMap = new Map();
+        for (let i = 0; i < filteredData.length; i++) {
+            const item = filteredData[i];
+            const gov = item.Governorship || 'Unknown';
+            const current = govMap.get(gov) || 0;
+            govMap.set(gov, current + (item['Fellowship Attendance'] || 0));
+        }
+        
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Array.from(govMap.keys()),
+                datasets: [{ label: 'Total Fellowship Attendance', data: Array.from(govMap.values()), backgroundColor: '#3b82f6' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        
+    } else if (currentChartView === "byLeader") {
+        const leaderMap = new Map();
+        for (let i = 0; i < filteredData.length; i++) {
+            const item = filteredData[i];
+            const leader = item.Leader || 'Unknown';
+            const current = leaderMap.get(leader) || 0;
+            leaderMap.set(leader, current + (item['Fellowship Attendance'] || 0));
+        }
+        const sorted = Array.from(leaderMap.entries()).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+        
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sorted.map(function(s) { return s[0]; }),
+                datasets: [{ label: 'Total Fellowship Attendance', data: sorted.map(function(s) { return s[1]; }), backgroundColor: '#3b82f6' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+}
+
+function showSummaryModal(summaryText) {
+    const modal = document.getElementById('summaryModal');
+    const summaryDiv = document.getElementById('summaryText');
+    summaryDiv.innerText = summaryText;
+    modal.style.display = 'flex';
+}
+
+function setupModalButtons() {
+    const copyBtn = document.getElementById('copySummaryBtn');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const modal = document.getElementById('summaryModal');
+    
+    copyBtn.onclick = function() {
+        const summaryText = document.getElementById('summaryText').innerText;
+        navigator.clipboard.writeText(summaryText).then(function() {
+            copyBtn.innerText = 'Copied!';
+            setTimeout(function() {
+                copyBtn.innerText = 'Copy to Clipboard';
+            }, 2000);
+        });
+    };
+    
+    closeBtn.onclick = function() {
+        modal.style.display = 'none';
+    };
+    
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
+}
+
+function renderForm() {
+    const container = document.getElementById("formContainer");
+    const allowed = isBacentaSubmissionAllowed();
+    
+    if (!allowed && !TEST_MODE) {
+        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Friday 6:00 PM - 9:00 PM<br>Sunday 2:00 PM - 6:00 PM (EAT)</div>';
+        return;
+    }
+    
+    container.innerHTML = '<label>Leader Name</label><select id="leaderSelect" required><option value="">Select Leader</option><optgroup label="Juja Governorship">' + LEADERS_BY_GOV["Juja Governorship"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup><optgroup label="KU Governorship">' + LEADERS_BY_GOV["KU Governorship"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup><optgroup label="Kiriri Governorship">' + LEADERS_BY_GOV["Kiriri Governorship"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup><option value="other">Other (Add New Leader)</option></select><input type="text" id="newLeaderName" placeholder="Enter new leader name" style="display:none;"><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Fellowship Attendance</label><input type="number" id="fellowshipAtt" value="0"><label>Service Attendance</label><input type="number" id="serviceAtt" value="0"><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Report</button>';
+    
+    const leaderSelect = document.getElementById("leaderSelect");
+    const newLeaderInput = document.getElementById("newLeaderName");
+    leaderSelect.onchange = function() {
+        newLeaderInput.style.display = leaderSelect.value === "other" ? "block" : "none";
+    };
+    
+    const fileInput = document.getElementById("imageUpload");
+    if (fileInput) {
+        fileInput.onchange = function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById("imagePreview").innerHTML = '<img src="' + ev.target.result + '" class="preview-img">';
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+    }
+    
+    document.getElementById("submitBtn").onclick = submitData;
+}
+
+async function uploadToImgBB(file) {
+    const formData = new FormData();
+    formData.append("image", file);
+    
+    const response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
+        method: "POST",
+        body: formData
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+        return result.data.url;
+    } else {
+        throw new Error("Image upload failed");
+    }
+}
+
+async function submitData() {
+    const status = document.getElementById("status");
+    const leaderSelect = document.getElementById("leaderSelect");
+    const newLeaderInput = document.getElementById("newLeaderName");
+    
+    let leaderName = leaderSelect.value;
+    if (leaderName === "other") {
+        leaderName = newLeaderInput.value.trim();
+        if (!leaderName) {
+            status.innerHTML = '<span class="error-msg">Please enter a leader name</span>';
+            return;
+        }
+    }
+    
+    const governorship = document.getElementById("governorshipSelect").value;
+    const fellowshipAtt = parseInt(document.getElementById("fellowshipAtt").value) || 0;
+    const serviceAtt = parseInt(document.getElementById("serviceAtt").value) || 0;
+    const offering = parseInt(document.getElementById("offering").value) || 0;
+    const file = document.getElementById("imageUpload").files[0];
+    
+    if (!leaderName) { status.innerHTML = '<span class="error-msg">Leader name required</span>'; return; }
+    if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+    
+    status.innerHTML = '<span style="color: #3b82f6;">Uploading image...</span>';
+    
+    let imageUrl = "";
+    if (file) {
+        try {
+            imageUrl = await uploadToImgBB(file);
+        } catch (error) {
+            status.innerHTML = '<span class="error-msg">Image upload failed</span>';
+            return;
+        }
+    }
+    
+    status.innerHTML = '<span style="color: #3b82f6;">Submitting...</span>';
+    
+    const params = new URLSearchParams();
+    params.append('action', 'write');
+    params.append('type', 'bacenta');
+    params.append('sheet', 'Sheet1');
+    params.append('Leader', leaderName);
+    params.append('Governorship', governorship);
+    params.append('Fellowship Attendance', fellowshipAtt);
+    params.append('Service Attendance', serviceAtt);
+    params.append('Offering', offering);
+    params.append('Selfie URL', imageUrl);
+    
+    const fullUrl = API_URL + '?' + params.toString();
+    
+    try {
+        const response = await fetch(fullUrl);
+        const text = await response.text();
+        
+        if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+            // Generate summary text
+            const currentDate = formatDate();
+            const summaryText = `Name of Leader: ${leaderName}
+Governorship: ${governorship}
+Date: ${currentDate}
+Fellowship Attendance: ${fellowshipAtt}
+Service Attendance: ${serviceAtt}
+Offering: KES ${offering}`;
+            
+            // Show summary modal
+            showSummaryModal(summaryText);
+            
+            status.innerHTML = '<span class="success-msg">Report submitted successfully!</span>';
+            document.getElementById("leaderSelect").value = "";
+            document.getElementById("governorshipSelect").value = "";
+            document.getElementById("fellowshipAtt").value = "0";
+            document.getElementById("serviceAtt").value = "0";
+            document.getElementById("offering").value = "0";
+            document.getElementById("imageUpload").value = "";
+            document.getElementById("imagePreview").innerHTML = "";
+            
+            setTimeout(async function() {
+                await loadData();
+                status.innerHTML = '';
+            }, 2000);
+        } else {
+            status.innerHTML = '<span class="error-msg">Submission failed</span>';
+        }
+    } catch (error) {
+        status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+    }
+}
+
+function exportToExcel() {
+    if (filteredData.length === 0) {
+        alert('No data to export!');
+        return;
+    }
+    const ws = XLSX.utils.json_to_sheet(filteredData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Bacenta_Data');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, 'Bacenta_Fellowships_' + dateStr + '.xlsx');
+}
+
+document.getElementById("searchLeader")?.addEventListener("input", function() { applyFilters(); });
+document.getElementById("filterGovernorship")?.addEventListener("change", function() { applyFilters(); });
+document.getElementById("resetFilters")?.addEventListener("click", function() {
+    document.getElementById("searchLeader").value = "";
+    document.getElementById("filterGovernorship").value = "";
+    applyFilters();
+});
+document.getElementById("viewOverall")?.addEventListener("click", function() {
+    currentChartView = "overall";
+    document.querySelectorAll('.chart-controls button').forEach(function(btn) { btn.classList.remove('active'); });
+    document.getElementById("viewOverall").classList.add('active');
+    updateChart();
+});
+document.getElementById("viewByGovernorship")?.addEventListener("click", function() {
+    currentChartView = "byGovernorship";
+    document.querySelectorAll('.chart-controls button').forEach(function(btn) { btn.classList.remove('active'); });
+    document.getElementById("viewByGovernorship").classList.add('active');
+    updateChart();
+});
+document.getElementById("viewByLeader")?.addEventListener("click", function() {
+    currentChartView = "byLeader";
+    document.querySelectorAll('.chart-controls button').forEach(function(btn) { btn.classList.remove('active'); });
+    document.getElementById("viewByLeader").classList.add('active');
+    updateChart();
+});
+document.getElementById("exportBtn")?.addEventListener("click", exportToExcel);
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+setupModalButtons();
+updateAccessUI();
+renderForm();
+loadData();
+setInterval(updateAccessUI, 60000);
+</script>
+</body>
+</html>

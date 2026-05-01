@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Raw Response</title>
+    <style>
+        body { background: #0b1120; color: white; font-family: monospace; padding: 20px; }
+        pre { background: #111827; padding: 15px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <h1>Raw Response from Apps Script</h1>
+    <div id="url"></div>
+    <pre id="response">Loading...</pre>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyk7KeX_aetpRJXsH0W-Y9SJ5xXQq2_hO_4pu017jU4I9TtPMfHZ6ErrEqUZTOFCarbbA/exec';
+        
+        document.getElementById('url').innerHTML = `<strong>URL:</strong> ${API_URL}?action=read&type=bacenta`;
+        
+        async function fetchRaw() {
+            try {
+                const url = `${API_URL}?action=read&type=bacenta`;
+                const response = await fetch(url);
+                const text = await response.text();
+                document.getElementById('response').innerText = text;
+            } catch (error) {
+                document.getElementById('response').innerText = 'Error: ' + error.message;
+            }
+        }
+        
+        fetchRaw();
+    </script>
+</body>
+</html>

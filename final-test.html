@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Final FLC Test</title>
+    <style>
+        body { background: #0b1120; color: white; font-family: monospace; padding: 20px; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        pre { background: #111827; padding: 10px; overflow-x: auto; }
+        button { background: #2563eb; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Final FLC Connection Test</h1>
+    
+    <div>
+        <p><strong>URL being tested:</strong></p>
+        <code id="urlDisplay" style="background:#1f2937; padding:10px; display:block; word-break:break-all;"></code>
+    </div>
+    
+    <div>
+        <button onclick="testGet()">1️⃣ Test GET</button>
+        <button onclick="testPost()">2️⃣ Test POST</button>
+        <button onclick="testRead()">3️⃣ Test READ from Bacenta</button>
+    </div>
+    
+    <div id="result" style="margin-top: 20px;"></div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycby1Fr6g8NHDSHzOLYqzzNk3AM-nvMRJU4aFTAqAyrIDzEmH7tZHB_2haEn_kFzzMBHUvw/exec';
+        
+        // Display the URL being tested
+        document.getElementById('urlDisplay').innerText = API_URL;
+        
+        async function testGet() {
+            const div = document.getElementById('result');
+            div.innerHTML = '<span class="info">Testing GET request...</span><br>';
+            
+            try {
+                const response = await fetch(API_URL);
+                const text = await response.text();
+                
+                div.innerHTML += `<span class="info">Status: ${response.status}</span><br>`;
+                div.innerHTML += `<span class="info">Response:</span><br>`;
+                div.innerHTML += `<pre>${text}</pre>`;
+                
+                // Try to parse as JSON
+                try {
+                    const json = JSON.parse(text);
+                    if (json.success) {
+                        div.innerHTML += `<span class="success">✅ GET successful! Message: ${json.message || 'OK'}</span><br>`;
+                    }
+                } catch(e) {
+                    div.innerHTML += `<span class="info">Response is plain text (not JSON)</span><br>`;
+                }
+            } catch (error) {
+                div.innerHTML += `<span class="error">❌ GET failed: ${error.message}</span><br>`;
+            }
+        }
+        
+        async function testPost() {
+            const div = document.getElementById('result');
+            div.innerHTML = '<span class="info">Testing POST request...</span><br>';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'test'
+                    })
+                });
+                
+                const text = await response.text();
+                
+                div.innerHTML += `<span class="info">Status: ${response.status}</span><br>`;
+                div.innerHTML += `<span class="info">Response:</span><br>`;
+                div.innerHTML += `<pre>${text}</pre>`;
+                
+                try {
+                    const json = JSON.parse(text);
+                    if (json.success) {
+                        div.innerHTML += `<span class="success">✅ POST successful!</span><br>`;
+                    } else {
+                        div.innerHTML += `<span class="error">❌ POST returned error: ${json.error}</span><br>`;
+                    }
+                } catch(e) {
+                    div.innerHTML += `<span class="error">❌ Response is not valid JSON</span><br>`;
+                }
+            } catch (error) {
+                div.innerHTML += `<span class="error">❌ POST failed: ${error.message}</span><br>`;
+            }
+        }
+        
+        async function testRead() {
+            const div = document.getElementById('result');
+            div.innerHTML = '<span class="info">Reading data from Bacenta sheet...</span><br>';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'read'
+                    })
+                });
+                
+                const text = await response.text();
+                
+                div.innerHTML += `<span class="info">Status: ${response.status}</span><br>`;
+                
+                try {
+                    const json = JSON.parse(text);
+                    if (json.success) {
+                        div.innerHTML += `<span class="success">✅ Read successful!</span><br>`;
+                        if (json.data) {
+                            div.innerHTML += `<span class="info">Found ${json.data.length} records</span><br>`;
+                            div.innerHTML += `<pre>${JSON.stringify(json.data.slice(0, 3), null, 2)}</pre>`;
+                        }
+                    } else {
+                        div.innerHTML += `<span class="error">❌ Read failed: ${json.error}</span><br>`;
+                    }
+                } catch(e) {
+                    div.innerHTML += `<span class="error">❌ Response not JSON: ${text.substring(0, 200)}</span><br>`;
+                }
+            } catch (error) {
+                div.innerHTML += `<span class="error">❌ Read request failed: ${error.message}</span><br>`;
+            }
+        }
+    </script>
+</body>
+</html>

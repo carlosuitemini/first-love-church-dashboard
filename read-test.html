@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Read Test - FLC</title>
+    <style>
+        body { background: #0b1120; color: white; font-family: monospace; padding: 20px; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        pre { background: #111827; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>📖 Reading Data from Bacenta (Using GET)</h1>
+    <div id="result"></div>
+
+    <script>
+        // Replace with your NEW URL
+        const API_URL = 'YOUR_NEW_URL_HERE';
+        
+        async function readData() {
+            const div = document.getElementById('result');
+            div.innerHTML = 'Reading data...';
+            
+            try {
+                // Use GET with query parameters
+                const url = `${API_URL}?action=read&type=bacenta`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    div.innerHTML = `
+                        <span class="success">✅ Success!</span><br>
+                        <strong>Found ${data.count} records</strong><br><br>
+                        <strong>First 3 records:</strong>
+                        <pre>${JSON.stringify(data.data.slice(0, 3), null, 2)}</pre>
+                    `;
+                } else {
+                    div.innerHTML = `<span class="error">❌ Error: ${data.error}</span>`;
+                }
+            } catch (error) {
+                div.innerHTML = `<span class="error">❌ Failed: ${error.message}</span>`;
+            }
+        }
+        
+        readData();
+    </script>
+</body>
+</html>
