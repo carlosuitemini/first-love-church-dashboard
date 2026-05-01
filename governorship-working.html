@@ -74,6 +74,9 @@
             align-items: center;
             gap: 6px;
         }
+        .access-badge.closed {
+            background: #631e1e;
+        }
         .access-badge.test-mode {
             background: #fbbf24;
             color: #0b1120;
@@ -96,8 +99,13 @@
             color: white;
             cursor: pointer;
             font-weight: 600;
+            transition: background 0.2s;
         }
         button:hover { background: #1e40af; }
+        button:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
         table {
             width: 100%;
             margin-top: 10px;
@@ -126,6 +134,18 @@
         .filter-bar select {
             flex: 1;
             min-width: 200px;
+            margin-top: 0;
+        }
+        .history-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        .history-filters select {
+            flex: 1;
             margin-top: 0;
         }
         .chart-container {
@@ -182,6 +202,7 @@
             padding: 15px;
             flex: 1;
             border-left: 4px solid #fbbf24;
+            text-align: center;
         }
         .stat-card h4 {
             margin: 0 0 5px 0;
@@ -248,9 +269,44 @@
         .close-modal-btn:hover {
             background: #374151;
         }
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: flex-end;
+        }
+        .view-btn {
+            background: #1e293b;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .view-btn.active {
+            background: #fbbf24;
+            color: #0b1120;
+        }
+        .submission-type-indicator {
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .submission-type-indicator.midweek {
+            background: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+        }
+        .submission-type-indicator.sunday {
+            background: #1e3a2f;
+            border-left: 4px solid #10b981;
+        }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .panel { padding: 15px; }
+            .stats-container { flex-direction: column; }
+            .history-filters { flex-direction: column; }
         }
     </style>
 </head>
@@ -277,18 +333,38 @@
     </div>
 
     <div class="panel">
+        <div class="view-controls">
+            <div id="viewCurrentBtn" class="view-btn active">Current Week</div>
+            <div id="viewHistoryBtn" class="view-btn">History</div>
+        </div>
+        
+        <!-- History Filters (hidden by default) -->
+        <div id="historyFilters" class="history-filters" style="display: none;">
+            <select id="monthSelect">
+                <option value="">Select Month</option>
+            </select>
+            <select id="weekSelect">
+                <option value="">All Weeks</option>
+            </select>
+        </div>
+        
         <h3>Dashboard</h3>
+        <div class="stats-container" id="statsContainer">
+            <div class="stat-card"><h4>Total Midweek Attendance</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Sunday Attendance</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Reports Conducted</h4><div class="value">-</div></div>
+        </div>
+        
         <div class="filter-bar">
-            <select id="filterGovernorship">
-                <option value="">All Governorships</option>
-                <option>Juja Governorship</option>
-                <option>KU Governorship</option>
-                <option>Kiriri Governorship</option>
+            <select id="governorshipSelectFilter">
+                <option value="">Select Governorship</option>
+                <option value="Juja">Juja</option>
+                <option value="KU">KU</option>
+                <option value="Kiriri">Kiriri</option>
             </select>
             <button id="resetFilters">Reset</button>
         </div>
-        
-        <div class="stats-container" id="statsContainer"></div>
         
         <div class="chart-container">
             <canvas id="chart"></canvas>
@@ -330,15 +406,31 @@
 </div>
 
 <script>
-// Governorship Dashboard - With Correct Column Names
+// Governorship Dashboard - Reads from Sheet1 for existing data
 const API_URL = 'https:\/\/script.google.com\/macros\/s\/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ\/exec';
 const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
-const TEST_MODE = false;
+const TEST_MODE = true;
 
 let globalData = [];
+let currentWeekData = [];
+let historyData = [];
 let filteredData = [];
+let currentView = 'current';
 let chart;
+let isSubmitting = false;
 let currentFormType = 'midweek';
+let selectedMonth = '';
+let selectedWeek = '';
+
+const GOV_NAMES = {
+    "Juja": "Juja Governorship",
+    "KU": "KU Governorship",
+    "Kiriri": "Kiriri Governorship"
+};
+
+function getFullGovName(shortName) {
+    return GOV_NAMES[shortName] || shortName;
+}
 
 function getEATTime() {
     const now = new Date();
@@ -357,6 +449,65 @@ function formatDate() {
 function getMonthName(monthIndex) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[monthIndex];
+}
+
+function getWeekNumber(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dayOfMonth = date.getDate();
+    
+    const firstDay = new Date(year, month, 1);
+    const firstDayWeekday = firstDay.getDay();
+    
+    let mondayOffset;
+    if (firstDayWeekday === 0) {
+        mondayOffset = 6;
+    } else {
+        mondayOffset = firstDayWeekday - 1;
+    }
+    
+    const firstMondayDate = 1 + ((7 - mondayOffset) % 7);
+    
+    if (dayOfMonth < firstMondayDate) {
+        return 1;
+    } else {
+        return Math.ceil((dayOfMonth - firstMondayDate + 1) / 7) + 1;
+    }
+}
+
+function getWeekLabel(dateString) {
+    const date = new Date(dateString);
+    const month = date.getMonth();
+    const weekNumber = getWeekNumber(date);
+    return getMonthName(month) + ' Week ' + weekNumber;
+}
+
+function getWeeksInMonth(year, month) {
+    const weeks = [];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    let currentDate = new Date(firstDay);
+    
+    while (currentDate <= lastDay) {
+        const weekNum = getWeekNumber(currentDate);
+        if (!weeks.includes(weekNum)) {
+            weeks.push(weekNum);
+        }
+        currentDate.setDate(currentDate.getDate() + 7);
+    }
+    
+    return weeks;
+}
+
+function getCurrentWeekStart() {
+    const now = getEATTime();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
 }
 
 function isMidweekAllowed() {
@@ -378,13 +529,15 @@ function isSundayAllowed() {
 }
 
 function getCurrentAllowedType() {
-    if (isMidweekAllowed()) return "midweek";
-    if (isSundayAllowed()) return "sunday";
-    return null;
+    if (TEST_MODE) return 'both';
+    if (isMidweekAllowed()) return 'midweek';
+    if (isSundayAllowed()) return 'sunday';
+    return 'none';
 }
 
 function updateAccessUI() {
     const accessDiv = document.getElementById("accessStatus");
+    const allowedType = getCurrentAllowedType();
     
     if (TEST_MODE) {
         accessDiv.innerHTML = 'TEST MODE - Both forms available';
@@ -394,15 +547,13 @@ function updateAccessUI() {
         return;
     }
     
-    const allowedType = getCurrentAllowedType();
-    
-    if (allowedType === "midweek") {
-        accessDiv.innerHTML = 'OPEN - Midweek (Thu 8-10pm)';
-        accessDiv.style.background = "#164e2e";
+    if (allowedType === 'midweek') {
+        accessDiv.innerHTML = 'OPEN - Thursday 8-10pm (Midweek Governorship)';
+        accessDiv.style.background = "#3b82f6";
         accessDiv.style.color = "white";
-    } else if (allowedType === "sunday") {
-        accessDiv.innerHTML = 'OPEN - Sunday (2-6pm)';
-        accessDiv.style.background = "#164e2e";
+    } else if (allowedType === 'sunday') {
+        accessDiv.innerHTML = 'OPEN - Sunday 2-6pm (Sunday Report)';
+        accessDiv.style.background = "#10b981";
         accessDiv.style.color = "white";
     } else {
         accessDiv.innerHTML = 'CLOSED - Thu 8-10pm & Sun 2-6pm EAT';
@@ -411,43 +562,169 @@ function updateAccessUI() {
     }
 }
 
+function hasGovernorshipSubmittedToday(governorship, submissionType) {
+    const today = new Date().toDateString();
+    
+    for (let i = 0; i < globalData.length; i++) {
+        const item = globalData[i];
+        const itemDate = item.Timestamp ? new Date(item.Timestamp).toDateString() : '';
+        const itemGov = item.Governorship || '';
+        
+        if (itemGov === governorship && itemDate === today) {
+            return true;
+        }
+    }
+    return false;
+}
+
 async function loadData() {
     const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>';
+    tbody.innerHTML = '<td><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>';
     
     try {
         const url = API_URL + '?action=read&type=governorship&sheet=Sheet1';
-        console.log('Fetching from:', url);
-        
         const response = await fetch(url);
         const result = await response.json();
-        
-        console.log('API Result:', result);
         
         if (result.success && result.data) {
             globalData = result.data;
             console.log('Loaded', globalData.length, 'records from Governorship sheet');
+            
+            const weekStart = getCurrentWeekStart();
+            currentWeekData = [];
+            historyData = [];
+            
+            for (let i = 0; i < globalData.length; i++) {
+                const item = globalData[i];
+                const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
+                if (itemDate && itemDate >= weekStart) {
+                    currentWeekData.push(item);
+                } else {
+                    historyData.push(item);
+                }
+            }
+            
+            console.log('Current week records:', currentWeekData.length);
+            console.log('History records:', historyData.length);
+            
+            populateMonthSelector();
         } else {
             globalData = [];
-            console.log('No data found or error:', result.error);
+            currentWeekData = [];
+            historyData = [];
         }
     } catch (error) {
         console.error("Error loading data:", error);
         globalData = [];
+        currentWeekData = [];
+        historyData = [];
     }
     
     applyFilters();
 }
 
+function populateMonthSelector() {
+    const monthSelect = document.getElementById('monthSelect');
+    const months = new Set();
+    
+    for (let i = 0; i < historyData.length; i++) {
+        const item = historyData[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const monthKey = year + '-' + month;
+            const monthLabel = getMonthName(month) + ' ' + year;
+            months.add(JSON.stringify({ key: monthKey, label: monthLabel, year: year, month: month }));
+        }
+    }
+    
+    let options = '<option value="">Select Month</option>';
+    const sortedMonths = Array.from(months).map(function(m) { return JSON.parse(m); }).sort(function(a, b) {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+    });
+    
+    for (let i = 0; i < sortedMonths.length; i++) {
+        const m = sortedMonths[i];
+        options += '<option value="' + m.key + '">' + m.label + '</option>';
+    }
+    monthSelect.innerHTML = options;
+}
+
+function updateWeekSelector() {
+    const monthSelect = document.getElementById('monthSelect');
+    const weekSelect = document.getElementById('weekSelect');
+    const selectedMonthValue = monthSelect.value;
+    
+    if (!selectedMonthValue) {
+        weekSelect.innerHTML = '<option value="">All Weeks</option>';
+        return;
+    }
+    
+    const parts = selectedMonthValue.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    
+    const weeks = getWeeksInMonth(year, month);
+    
+    let options = '<option value="">All Weeks</option>';
+    for (let i = 0; i < weeks.length; i++) {
+        options += '<option value="' + weeks[i] + '">Week ' + weeks[i] + '</option>';
+    }
+    weekSelect.innerHTML = options;
+}
+
+function filterHistoryByMonthWeek(data) {
+    if (!selectedMonth) return data;
+    
+    const parts = selectedMonth.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    
+    let filtered = data.filter(function(item) {
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        return date && date.getFullYear() === year && date.getMonth() === month;
+    });
+    
+    if (selectedWeek && selectedWeek !== '') {
+        const weekNum = parseInt(selectedWeek);
+        filtered = filtered.filter(function(item) {
+            const date = item.Timestamp ? new Date(item.Timestamp) : null;
+            return date && getWeekNumber(date) === weekNum;
+        });
+    }
+    
+    return filtered;
+}
+
 function applyFilters() {
-    const govFilter = document.getElementById("filterGovernorship").value;
+    const selectedGov = document.getElementById("governorshipSelectFilter").value;
+    
+    let dataSource = [];
+    if (currentView === 'current') {
+        dataSource = currentWeekData;
+    } else {
+        let historyFiltered = historyData;
+        if (selectedMonth) {
+            historyFiltered = filterHistoryByMonthWeek(historyData);
+        }
+        dataSource = historyFiltered;
+    }
     
     filteredData = [];
-    for (let i = 0; i < globalData.length; i++) {
-        const item = globalData[i];
-        const governorship = item.Governorship || "";
-        const matchesGov = (govFilter === "") || (governorship === govFilter);
+    for (let i = 0; i < dataSource.length; i++) {
+        const item = dataSource[i];
+        let governorship = item.Governorship || "";
+        let govShort = governorship;
+        if (governorship === "Juja Governorship") govShort = "Juja";
+        if (governorship === "KU Governorship") govShort = "KU";
+        if (governorship === "Kiriri Governorship") govShort = "Kiriri";
+        
+        const matchesGov = (selectedGov === "") || (govShort === selectedGov);
+        
         if (matchesGov) {
+            item.govShort = govShort;
             filteredData.push(item);
         }
     }
@@ -469,20 +746,21 @@ function renderTable() {
     for (let i = 0; i < filteredData.length; i++) {
         const d = filteredData[i];
         
-        const governorship = escapeHtml(d.Governorship || '');
-        const pastor = escapeHtml(d.Pastor || '');
-        const preacher = escapeHtml(d.Preacher || '');
+        const pastor = d.Pastor || '-';
+        const preacher = d.Preacher || '-';
         const midweekAtt = d['Midweek Attendance'] || 0;
         const firstTimers = d['First Timers'] || 0;
         const newConverts = d['New Converts'] || 0;
         const offering = d.Offering || 0;
         const totalAtt = d['Total Attendance'] || '-';
+        
+        const governorshipText = d.govShort || d.Governorship || '';
         const dateText = d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '';
         
         html += '<tr>';
-        html += '<td>' + governorship + '<\/td>';
-        html += '<td>' + pastor + '<\/td>';
-        html += '<td>' + preacher + '<\/td>';
+        html += '<td>' + escapeHtml(governorshipText) + '<\/td>';
+        html += '<td>' + escapeHtml(pastor) + '<\/td>';
+        html += '<td>' + escapeHtml(preacher) + '<\/td>';
         html += '<td>' + midweekAtt + '<\/td>';
         html += '<td>' + firstTimers + '<\/td>';
         html += '<td>' + newConverts + '<\/td>';
@@ -496,49 +774,77 @@ function renderTable() {
 }
 
 function updateStats() {
-    const statsContainer = document.getElementById("statsContainer");
-    
     let totalMidweek = 0;
     let totalSunday = 0;
     let totalOffering = 0;
+    let totalReportsConducted = filteredData.length;
     
     for (let i = 0; i < filteredData.length; i++) {
         const item = filteredData[i];
-        totalMidweek += item['Midweek Attendance'] || 0;
-        totalSunday += item['Total Attendance'] || 0;
-        totalOffering += item.Offering || 0;
+        totalMidweek += parseFloat(item['Midweek Attendance']) || 0;
+        totalSunday += parseFloat(item['Total Attendance']) || 0;
+        totalOffering += parseFloat(item.Offering) || 0;
     }
     
-    statsContainer.innerHTML = '<div class="stat-card"><h4>Total Midweek Attendance</h4><div class="value">' + totalMidweek + '</div></div><div class="stat-card"><h4>Total Sunday Attendance</h4><div class="value">' + totalSunday + '</div></div><div class="stat-card"><h4>Total Offering (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div>';
+    document.getElementById('statsContainer').innerHTML = '<div class="stat-card"><h4>Total Midweek Attendance</h4><div class="value">' + totalMidweek + '</div></div><div class="stat-card"><h4>Total Sunday Attendance</h4><div class="value">' + totalSunday + '</div></div><div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div><div class="stat-card"><h4>Total Reports Conducted</h4><div class="value">' + totalReportsConducted + '</div></div>';
+}
+
+function getAllWeeksInRange(data) {
+    const weeks = new Set();
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (date) {
+            const weekLabel = getWeekLabel(date);
+            weeks.add(weekLabel);
+        }
+    }
+    return Array.from(weeks).sort();
+}
+
+function getDataForChart() {
+    if (currentView === 'current') {
+        return currentWeekData;
+    } else {
+        let historyFiltered = historyData;
+        if (selectedMonth) {
+            historyFiltered = filterHistoryByMonthWeek(historyData);
+        }
+        return historyFiltered;
+    }
 }
 
 function updateChart() {
     const ctx = document.getElementById("chart").getContext("2d");
     if (chart) chart.destroy();
     
-    if (filteredData.length === 0) {
+    let chartData = getDataForChart();
+    
+    if (chartData.length === 0) {
         chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] } });
         return;
     }
     
+    const allWeeks = getAllWeeksInRange(chartData);
     const weekMap = new Map();
-    for (let i = 0; i < filteredData.length; i++) {
-        const item = filteredData[i];
-        let date = item.Timestamp ? new Date(item.Timestamp) : new Date();
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const week = Math.ceil(date.getDate() / 7);
-        const weekLabel = getMonthName(month) + ' Week ' + week;
-        
-        if (!weekMap.has(weekLabel)) {
-            weekMap.set(weekLabel, { midweek: 0, sunday: 0 });
-        }
-        const curr = weekMap.get(weekLabel);
-        curr.midweek += item['Midweek Attendance'] || 0;
-        curr.sunday += item['Total Attendance'] || 0;
+    
+    for (let i = 0; i < allWeeks.length; i++) {
+        weekMap.set(allWeeks[i], { midweek: 0, sunday: 0 });
     }
     
-    const sortedWeeks = Array.from(weekMap.keys()).sort();
+    for (let i = 0; i < chartData.length; i++) {
+        const item = chartData[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+        const weekLabel = getWeekLabel(date);
+        
+        if (weekMap.has(weekLabel)) {
+            const curr = weekMap.get(weekLabel);
+            curr.midweek += parseFloat(item['Midweek Attendance']) || 0;
+            curr.sunday += parseFloat(item['Total Attendance']) || 0;
+        }
+    }
+    
+    const sortedWeeks = allWeeks.sort();
     const midweekData = [];
     const sundayData = [];
     
@@ -557,7 +863,10 @@ function updateChart() {
                 { label: 'Sunday Attendance', data: sundayData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
     });
 }
 
@@ -594,6 +903,46 @@ function setupModalButtons() {
     };
 }
 
+function switchView(view) {
+    currentView = view;
+    
+    const currentBtn = document.getElementById('viewCurrentBtn');
+    const historyBtn = document.getElementById('viewHistoryBtn');
+    const historyFilters = document.getElementById('historyFilters');
+    
+    if (view === 'current') {
+        currentBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        historyFilters.style.display = 'none';
+        selectedMonth = '';
+        selectedWeek = '';
+        document.getElementById('monthSelect').value = '';
+        document.getElementById('weekSelect').innerHTML = '<option value="">All Weeks</option>';
+    } else {
+        currentBtn.classList.remove('active');
+        historyBtn.classList.add('active');
+        historyFilters.style.display = 'flex';
+        populateMonthSelector();
+    }
+    
+    applyFilters();
+}
+
+function onMonthChange() {
+    const monthSelect = document.getElementById('monthSelect');
+    selectedMonth = monthSelect.value;
+    updateWeekSelector();
+    selectedWeek = '';
+    document.getElementById('weekSelect').value = '';
+    applyFilters();
+}
+
+function onWeekChange() {
+    const weekSelect = document.getElementById('weekSelect');
+    selectedWeek = weekSelect.value;
+    applyFilters();
+}
+
 function switchFormType(type) {
     currentFormType = type;
     renderFormByType();
@@ -620,15 +969,24 @@ function renderFormByType() {
     const container = document.getElementById("formContainer");
     const allowedType = getCurrentAllowedType();
     
-    if (!allowedType && !TEST_MODE) {
-        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Thursday 8:00 PM - 10:00 PM (Midweek)<br>Sunday 2:00 PM - 6:00 PM<br>EAT Timezone<\/div>';
+    if (allowedType === 'none' && !TEST_MODE) {
+        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Thursday 8:00 PM - 10:00 PM (Midweek Governorship)<br>Sunday 2:00 PM - 6:00 PM<br>EAT Timezone</div>';
         return;
     }
     
+    let submissionTypeHtml = '';
+    if (allowedType === 'midweek') {
+        submissionTypeHtml = '<div class="submission-type-indicator midweek"><strong>Thursday Submission (8pm-10pm)</strong><br>Submit: Midweek Governorship Report</div>';
+    } else if (allowedType === 'sunday') {
+        submissionTypeHtml = '<div class="submission-type-indicator sunday"><strong>Sunday Submission (2pm-6pm)</strong><br>Submit: Sunday Report</div>';
+    } else if (TEST_MODE) {
+        submissionTypeHtml = '<div class="submission-type-indicator"><strong>TEST MODE</strong><br>Both forms available for testing</div>';
+    }
+    
     if (currentFormType === "midweek") {
-        container.innerHTML = '<div class="submission-toggle"><div class="toggle-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Thu 8-10pm)</div><div class="toggle-btn" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Pastor Name</label><input type="text" id="pastorName" placeholder="Pastor Name" required><label>Preacher Name</label><input type="text" id="preacherName" placeholder="Preacher Name" required><label>Midweek Attendance</label><input type="number" id="midweekAttendance" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>Message Preached</label><input type="text" id="messagePreached" placeholder="Message Preached" required><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Crowd Photo</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
+        container.innerHTML = submissionTypeHtml + '<div class="submission-toggle"><div class="toggle-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Thu 8-10pm)</div><div class="toggle-btn" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option value="Juja">Juja</option><option value="KU">KU</option><option value="Kiriri">Kiriri</option></select><label>Pastor Name</label><input type="text" id="pastorName" placeholder="Pastor Name" required><label>Preacher Name</label><input type="text" id="preacherName" placeholder="Preacher Name" required><label>Midweek Attendance</label><input type="number" id="midweekAttendance" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>Message Preached</label><input type="text" id="messagePreached" placeholder="Message Preached" required><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Crowd Photo</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
     } else {
-        container.innerHTML = '<div class="submission-toggle"><div class="toggle-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Thu 8-10pm)</div><div class="toggle-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Bus Attendance</label><input type="number" id="busAttendance" value="0"><label>Walk-ins</label><input type="number" id="walkins" value="0"><label>Total First Timers</label><input type="number" id="totalFirstTimers" value="0"><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><button id="submitBtn">Submit Sunday Report</button>';
+        container.innerHTML = submissionTypeHtml + '<div class="submission-toggle"><div class="toggle-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Thu 8-10pm)</div><div class="toggle-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option value="Juja">Juja</option><option value="KU">KU</option><option value="Kiriri">Kiriri</option></select><label>Bus Attendance</label><input type="number" id="busAttendance" value="0"><label>Walk-ins</label><input type="number" id="walkins" value="0"><label>Total First Timers</label><input type="number" id="totalFirstTimers" value="0"><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><button id="submitBtn">Submit Sunday Report</button>';
     }
     
     const fileInput = document.getElementById("imageUpload");
@@ -653,10 +1011,16 @@ function renderForm() {
 }
 
 async function submitData() {
+    if (isSubmitting) {
+        document.getElementById("status").innerHTML = '<span class="error-msg">Please wait, already submitting...</span>';
+        return;
+    }
+    
     const status = document.getElementById("status");
     
     if (currentFormType === "midweek") {
-        const governorship = document.getElementById("governorshipSelect").value;
+        const governorshipShort = document.getElementById("governorshipSelect").value;
+        const governorship = getFullGovName(governorshipShort);
         const pastorName = document.getElementById("pastorName").value.trim();
         const preacherName = document.getElementById("preacherName").value.trim();
         const midweekAttendance = parseInt(document.getElementById("midweekAttendance").value) || 0;
@@ -668,10 +1032,15 @@ async function submitData() {
         const fileInput = document.getElementById("imageUpload");
         const file = fileInput ? fileInput.files[0] : null;
         
-        if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+        if (!governorshipShort) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
         if (!pastorName) { status.innerHTML = '<span class="error-msg">Pastor name required</span>'; return; }
         if (!preacherName) { status.innerHTML = '<span class="error-msg">Preacher name required</span>'; return; }
         if (!messagePreached) { status.innerHTML = '<span class="error-msg">Message preached required</span>'; return; }
+        
+        if (hasGovernorshipSubmittedToday(governorship, 'midweek')) {
+            status.innerHTML = '<span class="error-msg">You have already submitted a report for this governorship today. Duplicate submissions are not allowed.</span>';
+            return;
+        }
         
         let imageUrl = "";
         if (file) {
@@ -708,7 +1077,7 @@ async function submitData() {
             
             if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
                 const currentDate = formatDate();
-                const summaryText = `Governorship: ${governorship}
+                const summaryText = `Governorship: ${governorshipShort}
 Pastor Name: ${pastorName}
 Preacher Name: ${preacherName}
 Date: ${currentDate}
@@ -735,22 +1104,31 @@ Offering: KES ${offering}`;
                 setTimeout(async function() {
                     await loadData();
                     status.innerHTML = '';
+                    isSubmitting = false;
                 }, 2000);
             } else {
                 status.innerHTML = '<span class="error-msg">Submission failed</span>';
+                isSubmitting = false;
             }
         } catch (error) {
             status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+            isSubmitting = false;
         }
         
     } else {
-        const governorship = document.getElementById("governorshipSelect").value;
+        const governorshipShort = document.getElementById("governorshipSelect").value;
+        const governorship = getFullGovName(governorshipShort);
         const busAttendance = parseInt(document.getElementById("busAttendance").value) || 0;
         const walkins = parseInt(document.getElementById("walkins").value) || 0;
         const totalFirstTimers = parseInt(document.getElementById("totalFirstTimers").value) || 0;
         const totalAttendance = parseInt(document.getElementById("totalAttendance").value) || 0;
         
-        if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+        if (!governorshipShort) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+        
+        if (hasGovernorshipSubmittedToday(governorship, 'sunday')) {
+            status.innerHTML = '<span class="error-msg">You have already submitted a report for this governorship today. Duplicate submissions are not allowed.</span>';
+            return;
+        }
         
         status.innerHTML = '<span style="color: #3b82f6;">Submitting...</span>';
         
@@ -772,7 +1150,7 @@ Offering: KES ${offering}`;
             
             if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
                 const currentDate = formatDate();
-                const summaryText = `Governorship: ${governorship}
+                const summaryText = `Governorship: ${governorshipShort}
 Date: ${currentDate}
 Bus Attendance: ${busAttendance}
 Walk-ins: ${walkins}
@@ -791,12 +1169,15 @@ Total Attendance: ${totalAttendance}`;
                 setTimeout(async function() {
                     await loadData();
                     status.innerHTML = '';
+                    isSubmitting = false;
                 }, 2000);
             } else {
                 status.innerHTML = '<span class="error-msg">Submission failed</span>';
+                isSubmitting = false;
             }
         } catch (error) {
             status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+            isSubmitting = false;
         }
     }
 }
@@ -835,12 +1216,16 @@ function exportToExcel() {
     XLSX.writeFile(wb, 'Governorship_Reports_' + dateStr + '.xlsx');
 }
 
-document.getElementById("filterGovernorship")?.addEventListener("change", function() { applyFilters(); });
+document.getElementById("governorshipSelectFilter")?.addEventListener("change", function() { applyFilters(); });
 document.getElementById("resetFilters")?.addEventListener("click", function() {
-    document.getElementById("filterGovernorship").value = "";
+    document.getElementById("governorshipSelectFilter").value = "";
     applyFilters();
 });
 document.getElementById("exportBtn")?.addEventListener("click", exportToExcel);
+document.getElementById("viewCurrentBtn")?.addEventListener("click", function() { switchView('current'); });
+document.getElementById("viewHistoryBtn")?.addEventListener("click", function() { switchView('history'); });
+document.getElementById("monthSelect")?.addEventListener("change", function() { onMonthChange(); });
+document.getElementById("weekSelect")?.addEventListener("change", function() { onWeekChange(); });
 
 window.switchFormType = switchFormType;
 

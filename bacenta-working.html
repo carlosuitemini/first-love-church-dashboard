@@ -102,6 +102,10 @@
             transition: background 0.2s;
         }
         button:hover { background: #1e40af; }
+        button:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
         table {
             width: 100%;
             margin-top: 10px;
@@ -121,9 +125,21 @@
             flex-wrap: wrap;
             margin-bottom: 15px;
         }
-        .filter-bar input, .filter-bar select {
+        .filter-bar select {
             flex: 1;
-            min-width: 120px;
+            min-width: 200px;
+            margin-top: 0;
+        }
+        .history-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        .history-filters select {
+            flex: 1;
             margin-top: 0;
         }
         .chart-container {
@@ -171,7 +187,30 @@
             margin-top: 10px;
             border-radius: 8px;
         }
-        /* Modal styles */
+        .stats-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 15px;
+            flex: 1;
+            border-left: 4px solid #fbbf24;
+            text-align: center;
+        }
+        .stat-card h4 {
+            margin: 0 0 5px 0;
+            color: #9ca3af;
+            font-size: 0.8rem;
+        }
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -221,9 +260,44 @@
         .close-modal-btn:hover {
             background: #374151;
         }
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: flex-end;
+        }
+        .view-btn {
+            background: #1e293b;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .view-btn.active {
+            background: #fbbf24;
+            color: #0b1120;
+        }
+        .submission-type-indicator {
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .submission-type-indicator.friday {
+            background: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+        }
+        .submission-type-indicator.sunday {
+            background: #1e3a2f;
+            border-left: 4px solid #10b981;
+        }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .panel { padding: 15px; }
+            .stats-container { flex-direction: column; }
+            .history-filters { flex-direction: column; }
         }
     </style>
 </head>
@@ -250,20 +324,44 @@
     </div>
 
     <div class="panel">
+        <div class="view-controls">
+            <div id="viewCurrentBtn" class="view-btn active">Current Week</div>
+            <div id="viewHistoryBtn" class="view-btn">History</div>
+        </div>
+        
+        <!-- History Filters (hidden by default) -->
+        <div id="historyFilters" class="history-filters" style="display: none;">
+            <select id="monthSelect">
+                <option value="">Select Month</option>
+            </select>
+            <select id="weekSelect">
+                <option value="">All Weeks</option>
+            </select>
+        </div>
+        
         <h3>Dashboard</h3>
+        <div class="stats-container" id="statsContainer">
+            <div class="stat-card"><h4>Total Fellowship Attendance</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Service Attendance</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Fellowships Conducted</h4><div class="value">-</div></div>
+        </div>
+        
         <div class="filter-bar">
-            <input type="text" id="searchLeader" placeholder="Search leader...">
+            <select id="leaderSelectFilter">
+                <option value="">Select Leader</option>
+            </select>
             <select id="filterGovernorship">
                 <option value="">All Governorships</option>
-                <option>Juja Governorship</option>
-                <option>KU Governorship</option>
-                <option>Kiriri Governorship</option>
+                <option value="Juja">Juja</option>
+                <option value="KU">KU</option>
+                <option value="Kiriri">Kiriri</option>
             </select>
             <button id="resetFilters">Reset</button>
         </div>
         
         <div class="chart-controls">
-            <button id="viewOverall" class="active">Overall</button>
+            <button id="viewOverall" class="active">Overall Trends</button>
             <button id="viewByGovernorship">By Governorship</button>
             <button id="viewByLeader">By Leader</button>
         </div>
@@ -288,12 +386,12 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="7" style="text-align:center">Loading data...</td></tr>
+                    <tr><td colspan="7" style="text-align:center">Loading data...<\/td><\/tr>
                 </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+            <\/table>
+        <\/div>
+    <\/div>
+<\/div>
 
 <!-- Summary Modal -->
 <div id="summaryModal" class="modal">
@@ -306,21 +404,37 @@
 </div>
 
 <script>
-// Bacenta Dashboard - Working Version with Summary Modal
-const API_URL = 'https://script.google.com/macros/s/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ/exec';
+// Bacenta Dashboard - Complete Updated Version with Monday-Sunday Weeks
+const API_URL = 'https:\/\/script.google.com\/macros\/s\/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ\/exec';
 const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
-const TEST_MODE = false;
+const TEST_MODE = true;
 
 let globalData = [];
+let currentWeekData = [];
+let historyData = [];
 let filteredData = [];
+let currentView = 'current';
 let currentChartView = "overall";
 let chart;
+let isSubmitting = false;
+let selectedMonth = '';
+let selectedWeek = '';
 
 const LEADERS_BY_GOV = {
-    "Juja Governorship": ["Evans Okumu", "Paul Webi", "Deborah Njorogex", "Friend Mwaura"],
-    "Kiriri Governorship": ["Stella Njambi", "Charisma Angel", "Perkins Katisa", "Tanyasis"],
-    "KU Governorship": ["Joseph Misunga", "Austin Peter", "Beatrice Mueni", "George Gute", "Omaset Linda", "Edwin Omondi", "Abigail Mbogo"]
+    "Juja": ["Evans Okumu", "Paul Webi", "Deborah Njorogex", "Friend Mwaura"],
+    "Kiriri": ["Stella Njambi", "Charisma Angel", "Perkins Katisa", "Tanyasis"],
+    "KU": ["Joseph Misunga", "Austin Peter", "Beatrice Mueni", "George Gute", "Omaset Linda", "Edwin Omondi", "Abigail Mbogo"]
 };
+
+const GOV_FULL_NAMES = {
+    "Juja": "Juja Governorship",
+    "KU": "KU Governorship",
+    "Kiriri": "Kiriri Governorship"
+};
+
+function getFullGovName(shortName) {
+    return GOV_FULL_NAMES[shortName] || shortName;
+}
 
 function getEATTime() {
     const now = new Date();
@@ -328,42 +442,174 @@ function getEATTime() {
     return new Date(utc + (3 * 3600000));
 }
 
-function formatDate(date) {
-    const d = date || getEATTime();
+function formatDate() {
+    const d = getEATTime();
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     return day + '/' + month + '/' + year;
 }
 
-function isBacentaSubmissionAllowed() {
-    if (TEST_MODE) return true;
+function getMonthName(monthIndex) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[monthIndex];
+}
+
+function getWeekNumber(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dayOfMonth = date.getDate();
+    
+    const firstDay = new Date(year, month, 1);
+    const firstDayWeekday = firstDay.getDay();
+    
+    let mondayOffset;
+    if (firstDayWeekday === 0) {
+        mondayOffset = 6;
+    } else {
+        mondayOffset = firstDayWeekday - 1;
+    }
+    
+    const firstMondayDate = 1 + ((7 - mondayOffset) % 7);
+    
+    if (dayOfMonth < firstMondayDate) {
+        return 1;
+    } else {
+        return Math.ceil((dayOfMonth - firstMondayDate + 1) / 7) + 1;
+    }
+}
+
+function getWeekLabel(dateString) {
+    const date = new Date(dateString);
+    const month = date.getMonth();
+    const weekNumber = getWeekNumber(date);
+    return getMonthName(month) + ' Week ' + weekNumber;
+}
+
+function getWeeksInMonth(year, month) {
+    const weeks = [];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    let currentDate = new Date(firstDay);
+    let currentWeek = 1;
+    
+    while (currentDate <= lastDay) {
+        const weekNum = getWeekNumber(currentDate);
+        if (!weeks.includes(weekNum)) {
+            weeks.push(weekNum);
+        }
+        currentDate.setDate(currentDate.getDate() + 7);
+    }
+    
+    return weeks;
+}
+
+function getWeekStartEnd(year, month, weekNumber) {
+    const firstDay = new Date(year, month, 1);
+    const firstDayWeekday = firstDay.getDay();
+    let mondayOffset;
+    if (firstDayWeekday === 0) {
+        mondayOffset = 6;
+    } else {
+        mondayOffset = firstDayWeekday - 1;
+    }
+    
+    const firstMondayDate = 1 + ((7 - mondayOffset) % 7);
+    const weekStartDate = firstMondayDate + (weekNumber - 2) * 7;
+    const weekEndDate = weekStartDate + 6;
+    
+    const start = new Date(year, month, weekStartDate);
+    const end = new Date(year, month, weekEndDate);
+    
+    return { start, end };
+}
+
+function getCurrentWeekStart() {
+    const now = getEATTime();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+}
+
+function isFridayAllowed() {
     const now = getEATTime();
     const day = now.getDay();
     const hour = now.getHours();
-    if (day === 5 && hour >= 18 && hour < 21) return true;
+    if (day === 5 && hour >= 18 && hour < 22) return true;
+    return false;
+}
+
+function isSundayAllowed() {
+    const now = getEATTime();
+    const day = now.getDay();
+    const hour = now.getHours();
     if (day === 0 && hour >= 14 && hour < 18) return true;
+    return false;
+}
+
+function canSubmitFellowship() {
+    if (TEST_MODE) return true;
+    return isFridayAllowed();
+}
+
+function canSubmitService() {
+    if (TEST_MODE) return true;
+    return isSundayAllowed();
+}
+
+function isBacentaSubmissionAllowed() {
+    if (TEST_MODE) return true;
+    if (isFridayAllowed()) return true;
+    if (isSundayAllowed()) return true;
+    return false;
+}
+
+function getCurrentSubmissionType() {
+    if (TEST_MODE) return 'both';
+    if (isFridayAllowed()) return 'fellowship';
+    if (isSundayAllowed()) return 'service';
+    return 'none';
+}
+
+function hasLeaderSubmittedToday(leaderName, governorshipShort) {
+    const today = new Date().toDateString();
+    const fullGovernorship = getFullGovName(governorshipShort);
+    for (let i = 0; i < globalData.length; i++) {
+        const item = globalData[i];
+        const itemDate = item.Timestamp ? new Date(item.Timestamp).toDateString() : '';
+        if (item.Leader === leaderName && item.Governorship === fullGovernorship && itemDate === today) {
+            return true;
+        }
+    }
     return false;
 }
 
 function updateAccessUI() {
     const accessDiv = document.getElementById("accessStatus");
-    const allowed = isBacentaSubmissionAllowed();
+    const submissionType = getCurrentSubmissionType();
     
     if (TEST_MODE) {
-        accessDiv.innerHTML = 'TEST MODE - Submissions Open';
+        accessDiv.innerHTML = 'TEST MODE - Both forms available';
         accessDiv.style.background = "#fbbf24";
         accessDiv.style.color = "#0b1120";
         accessDiv.classList.add('test-mode');
         return;
     }
     
-    if (allowed) {
-        accessDiv.innerHTML = 'OPEN - Fri 6-9pm & Sun 2-6pm';
-        accessDiv.style.background = "#164e2e";
+    if (submissionType === 'fellowship') {
+        accessDiv.innerHTML = 'OPEN - Friday 6-10pm (Fellowship Attendance & Offering only)';
+        accessDiv.style.background = "#3b82f6";
+        accessDiv.style.color = "white";
+    } else if (submissionType === 'service') {
+        accessDiv.innerHTML = 'OPEN - Sunday 2-6pm (Service Attendance only)';
+        accessDiv.style.background = "#10b981";
         accessDiv.style.color = "white";
     } else {
-        accessDiv.innerHTML = 'CLOSED - Fri 6-9pm & Sun 2-6pm EAT';
+        accessDiv.innerHTML = 'CLOSED - Fri 6-10pm & Sun 2-6pm EAT';
         accessDiv.style.background = "#631e1e";
         accessDiv.style.color = "white";
     }
@@ -371,7 +617,7 @@ function updateAccessUI() {
 
 async function loadData() {
     const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">Loading data...</td></tr>';
+    tbody.innerHTML = '<table><td colspan="7" style="text-align:center">Loading data...<\/td><\/tr>';
     
     try {
         const url = API_URL + '?action=read&type=bacenta&sheet=Sheet1';
@@ -381,34 +627,172 @@ async function loadData() {
         if (result.success && result.data) {
             globalData = result.data;
             console.log('Loaded', globalData.length, 'records');
+            
+            const weekStart = getCurrentWeekStart();
+            currentWeekData = [];
+            historyData = [];
+            
+            for (let i = 0; i < globalData.length; i++) {
+                const item = globalData[i];
+                const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
+                if (itemDate && itemDate >= weekStart) {
+                    currentWeekData.push(item);
+                } else {
+                    historyData.push(item);
+                }
+            }
+            
+            console.log('Current week records:', currentWeekData.length);
+            console.log('History records:', historyData.length);
+            
+            updateLeaderFilter();
+            populateMonthSelector();
         } else {
             globalData = [];
+            currentWeekData = [];
+            historyData = [];
         }
     } catch (error) {
         console.error("Error loading data:", error);
         globalData = [];
+        currentWeekData = [];
+        historyData = [];
     }
     
     applyFilters();
 }
 
+function updateLeaderFilter() {
+    const leaderSelect = document.getElementById('leaderSelectFilter');
+    const leaders = new Set();
+    
+    const dataToUse = currentView === 'current' ? currentWeekData : historyData;
+    for (let i = 0; i < dataToUse.length; i++) {
+        if (dataToUse[i].Leader) {
+            leaders.add(dataToUse[i].Leader);
+        }
+    }
+    
+    let options = '<option value="">Select Leader</option>';
+    const sortedLeaders = Array.from(leaders).sort();
+    for (let i = 0; i < sortedLeaders.length; i++) {
+        options += '<option value="' + sortedLeaders[i] + '">' + sortedLeaders[i] + '</option>';
+    }
+    leaderSelect.innerHTML = options;
+}
+
+function populateMonthSelector() {
+    const monthSelect = document.getElementById('monthSelect');
+    const months = new Set();
+    
+    for (let i = 0; i < historyData.length; i++) {
+        const item = historyData[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const monthKey = year + '-' + month;
+            const monthLabel = getMonthName(month) + ' ' + year;
+            months.add(JSON.stringify({ key: monthKey, label: monthLabel, year: year, month: month }));
+        }
+    }
+    
+    let options = '<option value="">Select Month</option>';
+    const sortedMonths = Array.from(months).map(function(m) { return JSON.parse(m); }).sort(function(a, b) {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+    });
+    
+    for (let i = 0; i < sortedMonths.length; i++) {
+        const m = sortedMonths[i];
+        options += '<option value="' + m.key + '">' + m.label + '</option>';
+    }
+    monthSelect.innerHTML = options;
+}
+
+function updateWeekSelector() {
+    const monthSelect = document.getElementById('monthSelect');
+    const weekSelect = document.getElementById('weekSelect');
+    const selectedMonthValue = monthSelect.value;
+    
+    if (!selectedMonthValue) {
+        weekSelect.innerHTML = '<option value="">All Weeks</option>';
+        return;
+    }
+    
+    const parts = selectedMonthValue.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    
+    const weeks = getWeeksInMonth(year, month);
+    
+    let options = '<option value="">All Weeks</option>';
+    for (let i = 0; i < weeks.length; i++) {
+        options += '<option value="' + weeks[i] + '">Week ' + weeks[i] + '</option>';
+    }
+    weekSelect.innerHTML = options;
+}
+
+function filterHistoryByMonthWeek(data) {
+    if (!selectedMonth) return data;
+    
+    const parts = selectedMonth.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    
+    let filtered = data.filter(function(item) {
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        return date && date.getFullYear() === year && date.getMonth() === month;
+    });
+    
+    if (selectedWeek && selectedWeek !== '') {
+        const weekNum = parseInt(selectedWeek);
+        filtered = filtered.filter(function(item) {
+            const date = item.Timestamp ? new Date(item.Timestamp) : null;
+            return date && getWeekNumber(date) === weekNum;
+        });
+    }
+    
+    return filtered;
+}
+
 function applyFilters() {
-    const searchTerm = document.getElementById("searchLeader").value.toLowerCase();
-    const govFilter = document.getElementById("filterGovernorship").value;
+    const selectedLeader = document.getElementById("leaderSelectFilter").value;
+    let govFilter = document.getElementById("filterGovernorship").value;
+    
+    let dataSource = [];
+    if (currentView === 'current') {
+        dataSource = currentWeekData;
+    } else {
+        let historyDataFiltered = historyData;
+        if (selectedMonth) {
+            historyDataFiltered = filterHistoryByMonthWeek(historyData);
+        }
+        dataSource = historyDataFiltered;
+    }
     
     filteredData = [];
-    for (let i = 0; i < globalData.length; i++) {
-        const item = globalData[i];
-        const leader = (item.Leader || "").toLowerCase();
-        const governorship = item.Governorship || "";
-        const matchesLeader = leader.indexOf(searchTerm) !== -1;
-        const matchesGov = (govFilter === "") || (governorship === govFilter);
+    for (let i = 0; i < dataSource.length; i++) {
+        const item = dataSource[i];
+        const leader = item.Leader || "";
+        let governorship = item.Governorship || "";
+        
+        let govShort = governorship;
+        if (governorship === "Juja Governorship") govShort = "Juja";
+        if (governorship === "KU Governorship") govShort = "KU";
+        if (governorship === "Kiriri Governorship") govShort = "Kiriri";
+        
+        const matchesLeader = (selectedLeader === "") || (leader === selectedLeader);
+        const matchesGov = (govFilter === "") || (govShort === govFilter);
+        
         if (matchesLeader && matchesGov) {
+            item.govShort = govShort;
             filteredData.push(item);
         }
     }
     
     renderTable();
+    updateStats();
     updateChart();
 }
 
@@ -416,105 +800,246 @@ function renderTable() {
     const tbody = document.getElementById("tableBody");
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">No data found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center">No data found<\/td><\/tr>';
         return;
     }
     
     let html = '';
     for (let i = 0; i < filteredData.length; i++) {
         const d = filteredData[i];
+        let governorship = d.Governorship || "";
+        if (governorship === "Juja Governorship") governorship = "Juja";
+        if (governorship === "KU Governorship") governorship = "KU";
+        if (governorship === "Kiriri Governorship") governorship = "Kiriri";
+        
         html += '<tr>';
-        html += '<td>' + escapeHtml(d.Leader || '') + '</td>';
-        html += '<td>' + escapeHtml(d.Governorship || '') + '</td>';
-        html += '<td>' + (d['Fellowship Attendance'] || 0) + '</td>';
-        html += '<td>' + (d['Service Attendance'] || 0) + '</td>';
-        html += '<td>' + (d.Offering || 0) + '</td>';
-        html += '<td>' + (d['Selfie URL'] ? 'Yes' : '') + '</td>';
-        html += '<td>' + (d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '') + '</td>';
-        html += '</tr>';
+        html += '<td>' + escapeHtml(d.Leader || '') + '<\/td>';
+        html += '<td>' + escapeHtml(governorship) + '<\/td>';
+        html += '<td>' + (d['Fellowship Attendance'] || 0) + '<\/td>';
+        html += '<td>' + (d['Service Attendance'] || 0) + '<\/td>';
+        html += '<td>' + (d.Offering || 0) + '<\/td>';
+        html += '<td>' + (d['Selfie URL'] ? 'Yes' : '') + '<\/td>';
+        html += '<td>' + (d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '') + '<\/td>';
+        html += '<\/tr>';
     }
     
     tbody.innerHTML = html;
+}
+
+function updateStats() {
+    let totalFellowship = 0;
+    let totalService = 0;
+    let totalOffering = 0;
+    let totalFellowshipsConducted = filteredData.length;
+    
+    for (let i = 0; i < filteredData.length; i++) {
+        const item = filteredData[i];
+        totalFellowship += parseFloat(item['Fellowship Attendance']) || 0;
+        totalService += parseFloat(item['Service Attendance']) || 0;
+        totalOffering += parseFloat(item.Offering) || 0;
+    }
+    
+    document.getElementById('statsContainer').innerHTML = '<div class="stat-card"><h4>Total Fellowship Attendance</h4><div class="value">' + totalFellowship + '</div></div><div class="stat-card"><h4>Total Service Attendance</h4><div class="value">' + totalService + '</div></div><div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div><div class="stat-card"><h4>Total Fellowships Conducted</h4><div class="value">' + totalFellowshipsConducted + '</div></div>';
+}
+
+function getAllWeeksInRange(data) {
+    const weeks = new Set();
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (date) {
+            const weekLabel = getWeekLabel(date);
+            weeks.add(weekLabel);
+        }
+    }
+    return Array.from(weeks).sort();
+}
+
+function getDataForChart() {
+    if (currentView === 'current') {
+        return currentWeekData;
+    } else {
+        let historyFiltered = historyData;
+        if (selectedMonth) {
+            historyFiltered = filterHistoryByMonthWeek(historyData);
+        }
+        return historyFiltered;
+    }
 }
 
 function updateChart() {
     const ctx = document.getElementById("chart").getContext("2d");
     if (chart) chart.destroy();
     
-    if (filteredData.length === 0) {
-        chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] } });
-        return;
-    }
+    let chartData = getDataForChart();
     
     if (currentChartView === "overall") {
-        const dateMap = new Map();
-        for (let i = 0; i < filteredData.length; i++) {
-            const item = filteredData[i];
-            const date = item.Timestamp ? item.Timestamp.split('T')[0] : 'Unknown';
-            if (!dateMap.has(date)) {
-                dateMap.set(date, { fellowship: 0, service: 0 });
-            }
-            const curr = dateMap.get(date);
-            curr.fellowship += item['Fellowship Attendance'] || 0;
-            curr.service += item['Service Attendance'] || 0;
+        const allWeeks = getAllWeeksInRange(chartData);
+        const weekMap = new Map();
+        
+        for (let i = 0; i < allWeeks.length; i++) {
+            weekMap.set(allWeeks[i], { fellowship: 0, service: 0, offering: 0 });
         }
         
-        const sortedDates = Array.from(dateMap.keys()).sort();
+        for (let i = 0; i < chartData.length; i++) {
+            const item = chartData[i];
+            const date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+            const weekLabel = getWeekLabel(date);
+            
+            if (weekMap.has(weekLabel)) {
+                const curr = weekMap.get(weekLabel);
+                curr.fellowship += parseFloat(item['Fellowship Attendance']) || 0;
+                curr.service += parseFloat(item['Service Attendance']) || 0;
+                curr.offering += parseFloat(item.Offering) || 0;
+            }
+        }
+        
+        const sortedWeeks = allWeeks.sort();
         const fellowshipData = [];
         const serviceData = [];
-        for (let i = 0; i < sortedDates.length; i++) {
-            const d = sortedDates[i];
-            fellowshipData.push(dateMap.get(d).fellowship);
-            serviceData.push(dateMap.get(d).service);
+        const offeringData = [];
+        
+        for (let i = 0; i < sortedWeeks.length; i++) {
+            const w = sortedWeeks[i];
+            fellowshipData.push(weekMap.get(w).fellowship);
+            serviceData.push(weekMap.get(w).service);
+            offeringData.push(weekMap.get(w).offering);
         }
         
         chart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: sortedDates,
+                labels: sortedWeeks,
                 datasets: [
                     { label: 'Fellowship Attendance', data: fellowshipData, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.2 },
-                    { label: 'Service Attendance', data: serviceData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 }
+                    { label: 'Service Attendance', data: serviceData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 },
+                    { label: 'Offering (KES)', data: offeringData, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.2, yAxisID: 'y1' }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { title: { display: true, text: 'Attendance', color: '#fff' } },
+                    y1: { position: 'right', title: { display: true, text: 'Offering (KES)', color: '#f59e0b' }, grid: { drawOnChartArea: false } }
+                }
+            }
         });
         
     } else if (currentChartView === "byGovernorship") {
         const govMap = new Map();
-        for (let i = 0; i < filteredData.length; i++) {
-            const item = filteredData[i];
-            const gov = item.Governorship || 'Unknown';
-            const current = govMap.get(gov) || 0;
-            govMap.set(gov, current + (item['Fellowship Attendance'] || 0));
+        for (let i = 0; i < chartData.length; i++) {
+            const item = chartData[i];
+            let gov = item.Governorship || 'Unknown';
+            if (gov === "Juja Governorship") gov = "Juja";
+            if (gov === "KU Governorship") gov = "KU";
+            if (gov === "Kiriri Governorship") gov = "Kiriri";
+            
+            if (!govMap.has(gov)) {
+                govMap.set(gov, { fellowship: 0, offering: 0 });
+            }
+            const curr = govMap.get(gov);
+            curr.fellowship += parseFloat(item['Fellowship Attendance']) || 0;
+            curr.offering += parseFloat(item.Offering) || 0;
         }
         
         chart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: Array.from(govMap.keys()),
-                datasets: [{ label: 'Total Fellowship Attendance', data: Array.from(govMap.values()), backgroundColor: '#3b82f6' }]
+                datasets: [
+                    { label: 'Total Fellowship Attendance', data: Array.from(govMap.values()).map(v => v.fellowship), backgroundColor: '#3b82f6' },
+                    { label: 'Total Offering (KES)', data: Array.from(govMap.values()).map(v => v.offering), backgroundColor: '#f59e0b', yAxisID: 'y1' }
+                ]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { title: { display: true, text: 'Attendance', color: '#fff' } },
+                    y1: { position: 'right', title: { display: true, text: 'Offering (KES)', color: '#f59e0b' }, grid: { drawOnChartArea: false } }
+                }
+            }
         });
         
     } else if (currentChartView === "byLeader") {
-        const leaderMap = new Map();
-        for (let i = 0; i < filteredData.length; i++) {
-            const item = filteredData[i];
-            const leader = item.Leader || 'Unknown';
-            const current = leaderMap.get(leader) || 0;
-            leaderMap.set(leader, current + (item['Fellowship Attendance'] || 0));
+        const selectedLeader = document.getElementById("leaderSelectFilter").value;
+        const allWeeks = getAllWeeksInRange(chartData);
+        const weekMap = new Map();
+        
+        for (let i = 0; i < allWeeks.length; i++) {
+            weekMap.set(allWeeks[i], {});
         }
-        const sorted = Array.from(leaderMap.entries()).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+        
+        for (let i = 0; i < chartData.length; i++) {
+            const item = chartData[i];
+            const date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+            const weekLabel = getWeekLabel(date);
+            const leader = item.Leader || 'Unknown';
+            
+            if (weekMap.has(weekLabel)) {
+                const weekData = weekMap.get(weekLabel);
+                if (!weekData[leader]) {
+                    weekData[leader] = 0;
+                }
+                weekData[leader] += parseFloat(item['Fellowship Attendance']) || 0;
+            }
+        }
+        
+        let leadersToShow = [];
+        if (selectedLeader && selectedLeader !== "") {
+            leadersToShow = [{ name: selectedLeader }];
+        } else {
+            const leaderTotals = [];
+            for (let i = 0; i < chartData.length; i++) {
+                const item = chartData[i];
+                const leader = item.Leader || 'Unknown';
+                const existing = leaderTotals.find(l => l.name === leader);
+                if (existing) {
+                    existing.total += parseFloat(item['Fellowship Attendance']) || 0;
+                } else {
+                    leaderTotals.push({ name: leader, total: parseFloat(item['Fellowship Attendance']) || 0 });
+                }
+            }
+            leadersToShow = leaderTotals.sort((a, b) => b.total - a.total).slice(0, 5);
+        }
+        
+        const sortedWeeks = allWeeks.sort();
+        const datasets = [];
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+        
+        for (let i = 0; i < leadersToShow.length; i++) {
+            const leader = leadersToShow[i].name;
+            const data = [];
+            for (let w = 0; w < sortedWeeks.length; w++) {
+                const week = sortedWeeks[w];
+                const weekData = weekMap.get(week);
+                data.push(weekData[leader] || 0);
+            }
+            datasets.push({
+                label: leader,
+                data: data,
+                borderColor: colors[i % colors.length],
+                backgroundColor: 'transparent',
+                tension: 0.2,
+                fill: false
+            });
+        }
         
         chart = new Chart(ctx, {
-            type: 'bar',
+            type: 'line',
             data: {
-                labels: sorted.map(function(s) { return s[0]; }),
-                datasets: [{ label: 'Total Fellowship Attendance', data: sorted.map(function(s) { return s[1]; }), backgroundColor: '#3b82f6' }]
+                labels: sortedWeeks,
+                datasets: datasets
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false },
+                    legend: { position: 'bottom', labels: { color: '#fff', boxWidth: 10 } }
+                }
+            }
         });
     }
 }
@@ -552,16 +1077,90 @@ function setupModalButtons() {
     };
 }
 
+function switchView(view) {
+    currentView = view;
+    
+    const currentBtn = document.getElementById('viewCurrentBtn');
+    const historyBtn = document.getElementById('viewHistoryBtn');
+    const historyFilters = document.getElementById('historyFilters');
+    
+    if (view === 'current') {
+        currentBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        historyFilters.style.display = 'none';
+        selectedMonth = '';
+        selectedWeek = '';
+        document.getElementById('monthSelect').value = '';
+        document.getElementById('weekSelect').innerHTML = '<option value="">All Weeks</option>';
+    } else {
+        currentBtn.classList.remove('active');
+        historyBtn.classList.add('active');
+        historyFilters.style.display = 'flex';
+        populateMonthSelector();
+    }
+    
+    updateLeaderFilter();
+    applyFilters();
+}
+
+function onMonthChange() {
+    const monthSelect = document.getElementById('monthSelect');
+    selectedMonth = monthSelect.value;
+    updateWeekSelector();
+    selectedWeek = '';
+    document.getElementById('weekSelect').value = '';
+    applyFilters();
+}
+
+function onWeekChange() {
+    const weekSelect = document.getElementById('weekSelect');
+    selectedWeek = weekSelect.value;
+    applyFilters();
+}
+
 function renderForm() {
     const container = document.getElementById("formContainer");
+    const submissionType = getCurrentSubmissionType();
     const allowed = isBacentaSubmissionAllowed();
     
     if (!allowed && !TEST_MODE) {
-        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Friday 6:00 PM - 9:00 PM<br>Sunday 2:00 PM - 6:00 PM (EAT)</div>';
+        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Friday 6:00 PM - 10:00 PM (Fellowship Attendance & Offering)<br>Sunday 2:00 PM - 6:00 PM (Service Attendance)<br>EAT Timezone</div>';
         return;
     }
     
-    container.innerHTML = '<label>Leader Name</label><select id="leaderSelect" required><option value="">Select Leader</option><optgroup label="Juja Governorship">' + LEADERS_BY_GOV["Juja Governorship"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup><optgroup label="KU Governorship">' + LEADERS_BY_GOV["KU Governorship"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup><optgroup label="Kiriri Governorship">' + LEADERS_BY_GOV["Kiriri Governorship"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup><option value="other">Other (Add New Leader)</option></select><input type="text" id="newLeaderName" placeholder="Enter new leader name" style="display:none;"><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Fellowship Attendance</label><input type="number" id="fellowshipAtt" value="0"><label>Service Attendance</label><input type="number" id="serviceAtt" value="0"><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Report</button>';
+    let submissionTypeHtml = '';
+    if (submissionType === 'fellowship') {
+        submissionTypeHtml = '<div class="submission-type-indicator friday"><strong>Friday Submission (6pm-10pm)</strong><br>Submit: Fellowship Attendance & Offering only</div>';
+    } else if (submissionType === 'service') {
+        submissionTypeHtml = '<div class="submission-type-indicator sunday"><strong>Sunday Submission (2pm-6pm)</strong><br>Submit: Service Attendance only</div>';
+    } else if (TEST_MODE) {
+        submissionTypeHtml = '<div class="submission-type-indicator"><strong>TEST MODE</strong><br>All fields available for testing</div>';
+    }
+    
+    let leaderOptions = '';
+    leaderOptions += '<optgroup label="Juja">' + LEADERS_BY_GOV["Juja"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup>';
+    leaderOptions += '<optgroup label="KU">' + LEADERS_BY_GOV["KU"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup>';
+    leaderOptions += '<optgroup label="Kiriri">' + LEADERS_BY_GOV["Kiriri"].map(function(l) { return '<option value="' + l + '">' + l + '</option>'; }).join('') + '</optgroup>';
+    
+    let fellowshipFieldHtml = '';
+    let serviceFieldHtml = '';
+    let offeringFieldHtml = '';
+    
+    if (TEST_MODE) {
+        fellowshipFieldHtml = '<label>Fellowship Attendance</label><input type="number" id="fellowshipAtt" value="0">';
+        serviceFieldHtml = '<label>Service Attendance</label><input type="number" id="serviceAtt" value="0">';
+        offeringFieldHtml = '<label>Offering (KES)</label><input type="number" id="offering" value="0">';
+    } else if (submissionType === 'fellowship') {
+        fellowshipFieldHtml = '<label>Fellowship Attendance</label><input type="number" id="fellowshipAtt" value="0" required>';
+        serviceFieldHtml = '<label>Service Attendance</label><input type="number" id="serviceAtt" value="0" disabled style="opacity:0.6"><small style="color:#fbbf24">Service attendance can only be submitted on Sunday 2-6pm</small>';
+        offeringFieldHtml = '<label>Offering (KES)</label><input type="number" id="offering" value="0" required>';
+    } else if (submissionType === 'service') {
+        fellowshipFieldHtml = '<label>Fellowship Attendance</label><input type="number" id="fellowshipAtt" value="0" disabled style="opacity:0.6"><small style="color:#fbbf24">Fellowship attendance can only be submitted on Friday 6-10pm</small>';
+        serviceFieldHtml = '<label>Service Attendance</label><input type="number" id="serviceAtt" value="0" required>';
+        offeringFieldHtml = '<label>Offering (KES)</label><input type="number" id="offering" value="0" disabled style="opacity:0.6"><small style="color:#fbbf24">Offering can only be submitted on Friday</small>';
+    }
+    
+    container.innerHTML = submissionTypeHtml + '<label>Leader Name</label><select id="leaderSelect" required><option value="">Select Leader</option>' + leaderOptions + '<option value="other">Other (Add New Leader)</option></select><input type="text" id="newLeaderName" placeholder="Enter new leader name" style="display:none;"><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option value="Juja">Juja</option><option value="KU">KU</option><option value="Kiriri">Kiriri</option></select>' + fellowshipFieldHtml + serviceFieldHtml + offeringFieldHtml + '<label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Report</button>';
     
     const leaderSelect = document.getElementById("leaderSelect");
     const newLeaderInput = document.getElementById("newLeaderName");
@@ -604,9 +1203,15 @@ async function uploadToImgBB(file) {
 }
 
 async function submitData() {
+    if (isSubmitting) {
+        document.getElementById("status").innerHTML = '<span class="error-msg">Please wait, already submitting...</span>';
+        return;
+    }
+    
     const status = document.getElementById("status");
     const leaderSelect = document.getElementById("leaderSelect");
     const newLeaderInput = document.getElementById("newLeaderName");
+    const submissionType = getCurrentSubmissionType();
     
     let leaderName = leaderSelect.value;
     if (leaderName === "other") {
@@ -617,15 +1222,48 @@ async function submitData() {
         }
     }
     
-    const governorship = document.getElementById("governorshipSelect").value;
-    const fellowshipAtt = parseInt(document.getElementById("fellowshipAtt").value) || 0;
-    const serviceAtt = parseInt(document.getElementById("serviceAtt").value) || 0;
-    const offering = parseInt(document.getElementById("offering").value) || 0;
+    let governorshipShort = document.getElementById("governorshipSelect").value;
+    const governorship = getFullGovName(governorshipShort);
+    
+    let fellowshipAtt = 0;
+    let serviceAtt = 0;
+    let offering = 0;
+    
+    if (TEST_MODE) {
+        fellowshipAtt = parseInt(document.getElementById("fellowshipAtt").value) || 0;
+        serviceAtt = parseInt(document.getElementById("serviceAtt").value) || 0;
+        offering = parseInt(document.getElementById("offering").value) || 0;
+    } else if (submissionType === 'fellowship') {
+        fellowshipAtt = parseInt(document.getElementById("fellowshipAtt").value) || 0;
+        offering = parseInt(document.getElementById("offering").value) || 0;
+        serviceAtt = 0;
+    } else if (submissionType === 'service') {
+        serviceAtt = parseInt(document.getElementById("serviceAtt").value) || 0;
+        fellowshipAtt = 0;
+        offering = 0;
+    }
+    
     const file = document.getElementById("imageUpload").files[0];
     
     if (!leaderName) { status.innerHTML = '<span class="error-msg">Leader name required</span>'; return; }
-    if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
+    if (!governorshipShort) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
     
+    if (hasLeaderSubmittedToday(leaderName, governorshipShort)) {
+        status.innerHTML = '<span class="error-msg">You have already submitted a report for this leader today. Duplicate submissions are not allowed.</span>';
+        return;
+    }
+    
+    if (!TEST_MODE && submissionType === 'fellowship' && fellowshipAtt === 0) {
+        status.innerHTML = '<span class="error-msg">Fellowship attendance is required for Friday submission</span>';
+        return;
+    }
+    
+    if (!TEST_MODE && submissionType === 'service' && serviceAtt === 0) {
+        status.innerHTML = '<span class="error-msg">Service attendance is required for Sunday submission</span>';
+        return;
+    }
+    
+    isSubmitting = true;
     status.innerHTML = '<span style="color: #3b82f6;">Uploading image...</span>';
     
     let imageUrl = "";
@@ -634,6 +1272,7 @@ async function submitData() {
             imageUrl = await uploadToImgBB(file);
         } catch (error) {
             status.innerHTML = '<span class="error-msg">Image upload failed</span>';
+            isSubmitting = false;
             return;
         }
     }
@@ -658,36 +1297,48 @@ async function submitData() {
         const text = await response.text();
         
         if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
-            // Generate summary text
             const currentDate = formatDate();
-            const summaryText = `Name of Leader: ${leaderName}
-Governorship: ${governorship}
+            let summaryText = '';
+            
+            if (submissionType === 'fellowship' || (TEST_MODE && fellowshipAtt > 0)) {
+                summaryText = `Name of Leader: ${leaderName}
+Governorship: ${governorshipShort}
 Date: ${currentDate}
 Fellowship Attendance: ${fellowshipAtt}
-Service Attendance: ${serviceAtt}
 Offering: KES ${offering}`;
+                if (serviceAtt > 0) {
+                    summaryText += `\nService Attendance: ${serviceAtt}`;
+                }
+            } else {
+                summaryText = `Name of Leader: ${leaderName}
+Governorship: ${governorshipShort}
+Date: ${currentDate}
+Service Attendance: ${serviceAtt}`;
+            }
             
-            // Show summary modal
             showSummaryModal(summaryText);
             
             status.innerHTML = '<span class="success-msg">Report submitted successfully!</span>';
             document.getElementById("leaderSelect").value = "";
             document.getElementById("governorshipSelect").value = "";
-            document.getElementById("fellowshipAtt").value = "0";
-            document.getElementById("serviceAtt").value = "0";
-            document.getElementById("offering").value = "0";
+            if (document.getElementById("fellowshipAtt")) document.getElementById("fellowshipAtt").value = "0";
+            if (document.getElementById("serviceAtt")) document.getElementById("serviceAtt").value = "0";
+            if (document.getElementById("offering")) document.getElementById("offering").value = "0";
             document.getElementById("imageUpload").value = "";
             document.getElementById("imagePreview").innerHTML = "";
             
             setTimeout(async function() {
                 await loadData();
                 status.innerHTML = '';
+                isSubmitting = false;
             }, 2000);
         } else {
             status.innerHTML = '<span class="error-msg">Submission failed</span>';
+            isSubmitting = false;
         }
     } catch (error) {
         status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+        isSubmitting = false;
     }
 }
 
@@ -703,10 +1354,10 @@ function exportToExcel() {
     XLSX.writeFile(wb, 'Bacenta_Fellowships_' + dateStr + '.xlsx');
 }
 
-document.getElementById("searchLeader")?.addEventListener("input", function() { applyFilters(); });
+document.getElementById("leaderSelectFilter")?.addEventListener("change", function() { applyFilters(); });
 document.getElementById("filterGovernorship")?.addEventListener("change", function() { applyFilters(); });
 document.getElementById("resetFilters")?.addEventListener("click", function() {
-    document.getElementById("searchLeader").value = "";
+    document.getElementById("leaderSelectFilter").value = "";
     document.getElementById("filterGovernorship").value = "";
     applyFilters();
 });
@@ -729,6 +1380,10 @@ document.getElementById("viewByLeader")?.addEventListener("click", function() {
     updateChart();
 });
 document.getElementById("exportBtn")?.addEventListener("click", exportToExcel);
+document.getElementById("viewCurrentBtn")?.addEventListener("click", function() { switchView('current'); });
+document.getElementById("viewHistoryBtn")?.addEventListener("click", function() { switchView('history'); });
+document.getElementById("monthSelect")?.addEventListener("change", function() { onMonthChange(); });
+document.getElementById("weekSelect")?.addEventListener("change", function() { onWeekChange(); });
 
 function escapeHtml(str) {
     if (!str) return "";

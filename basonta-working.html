@@ -74,6 +74,9 @@
             align-items: center;
             gap: 6px;
         }
+        .access-badge.closed {
+            background: #631e1e;
+        }
         .access-badge.test-mode {
             background: #fbbf24;
             color: #0b1120;
@@ -96,8 +99,13 @@
             color: white;
             cursor: pointer;
             font-weight: 600;
+            transition: background 0.2s;
         }
         button:hover { background: #1e40af; }
+        button:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
         table {
             width: 100%;
             margin-top: 10px;
@@ -117,9 +125,21 @@
             flex-wrap: wrap;
             margin-bottom: 15px;
         }
-        .filter-bar input, .filter-bar select {
+        .filter-bar select {
             flex: 1;
-            min-width: 120px;
+            min-width: 180px;
+            margin-top: 0;
+        }
+        .history-filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        .history-filters select {
+            flex: 1;
             margin-top: 0;
         }
         .chart-container {
@@ -150,6 +170,10 @@
         .type-btn.active {
             background: #2563eb;
         }
+        .type-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .success-msg {
             color: #10b981;
             background: #064e3b;
@@ -169,6 +193,30 @@
             max-height: 100px;
             margin-top: 10px;
             border-radius: 8px;
+        }
+        .stats-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 15px;
+            flex: 1;
+            border-left: 4px solid #fbbf24;
+            text-align: center;
+        }
+        .stat-card h4 {
+            margin: 0 0 5px 0;
+            color: #9ca3af;
+            font-size: 0.8rem;
+        }
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
         }
         .modal {
             display: none;
@@ -219,9 +267,44 @@
         .close-modal-btn:hover {
             background: #374151;
         }
+        .view-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: flex-end;
+        }
+        .view-btn {
+            background: #1e293b;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .view-btn.active {
+            background: #fbbf24;
+            color: #0b1120;
+        }
+        .submission-type-indicator {
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .submission-type-indicator.midweek {
+            background: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+        }
+        .submission-type-indicator.sunday {
+            background: #1e3a2f;
+            border-left: 4px solid #10b981;
+        }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .panel { padding: 15px; }
+            .stats-container { flex-direction: column; }
+            .history-filters { flex-direction: column; }
         }
     </style>
 </head>
@@ -248,13 +331,37 @@
     </div>
 
     <div class="panel">
+        <div class="view-controls">
+            <div id="viewCurrentBtn" class="view-btn active">Current Week</div>
+            <div id="viewHistoryBtn" class="view-btn">History</div>
+        </div>
+        
+        <!-- History Filters (hidden by default) -->
+        <div id="historyFilters" class="history-filters" style="display: none;">
+            <select id="monthSelect">
+                <option value="">Select Month</option>
+            </select>
+            <select id="weekSelect">
+                <option value="">All Weeks</option>
+            </select>
+        </div>
+        
         <h3>Dashboard</h3>
+        <div class="stats-container" id="statsContainer">
+            <div class="stat-card"><h4>Total Attendance</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total New Converts</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4>Total Basontas Conducted</h4><div class="value">-</div></div>
+        </div>
+        
         <div class="filter-bar">
-            <input type="text" id="searchBasonta" placeholder="Search Basonta name...">
+            <select id="basontaSelectFilter">
+                <option value="">Select Basonta</option>
+            </select>
             <select id="filterType">
                 <option value="">All Submissions</option>
                 <option value="midweek">Midweek (Basonta)</option>
-                <option value="sunday">Sunday</option>
+                <option value="sunday">Sunday (Special Teams)</option>
             </select>
             <button id="resetFilters">Reset</button>
         </div>
@@ -271,7 +378,7 @@
                     <tr>
                         <th>Name</th>
                         <th>Leader</th>
-                        <th>Governorship</th>
+                        <th>Governorship/Team</th>
                         <th>Type</th>
                         <th>Attendance</th>
                         <th>New Converts</th>
@@ -299,15 +406,24 @@
 </div>
 
 <script>
-// Basonta Dashboard - With Summary Modal
+// Basonta Dashboard - Complete Updated Version with Monday-Sunday Weeks
 const API_URL = 'https:\/\/script.google.com\/macros\/s\/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ\/exec';
 const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
-const TEST_MODE = false;
+const TEST_MODE = true;
 
-let globalData = [];
+let globalMidweekData = [];
+let globalSundayData = [];
+let currentWeekMidweekData = [];
+let currentWeekSundayData = [];
+let historyMidweekData = [];
+let historySundayData = [];
 let filteredData = [];
+let currentView = 'current';
 let chart;
+let isSubmitting = false;
 let currentFormType = 'midweek';
+let selectedMonth = '';
+let selectedWeek = '';
 
 const BASONTA_NAMES = ['GLC CHOIR', 'DANCING STARS', 'AIRPORT STARS', 'USHERS', 'MEDIA', 'FLOLLYWOOD STARS'];
 
@@ -327,12 +443,77 @@ function formatDate() {
     return day + '/' + month + '/' + year;
 }
 
+function getMonthName(monthIndex) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[monthIndex];
+}
+
+function getWeekNumber(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const dayOfMonth = date.getDate();
+    
+    const firstDay = new Date(year, month, 1);
+    const firstDayWeekday = firstDay.getDay();
+    
+    let mondayOffset;
+    if (firstDayWeekday === 0) {
+        mondayOffset = 6;
+    } else {
+        mondayOffset = firstDayWeekday - 1;
+    }
+    
+    const firstMondayDate = 1 + ((7 - mondayOffset) % 7);
+    
+    if (dayOfMonth < firstMondayDate) {
+        return 1;
+    } else {
+        return Math.ceil((dayOfMonth - firstMondayDate + 1) / 7) + 1;
+    }
+}
+
+function getWeekLabel(dateString) {
+    const date = new Date(dateString);
+    const month = date.getMonth();
+    const weekNumber = getWeekNumber(date);
+    return getMonthName(month) + ' Week ' + weekNumber;
+}
+
+function getWeeksInMonth(year, month) {
+    const weeks = [];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    let currentDate = new Date(firstDay);
+    let currentWeek = 1;
+    
+    while (currentDate <= lastDay) {
+        const weekNum = getWeekNumber(currentDate);
+        if (!weeks.includes(weekNum)) {
+            weeks.push(weekNum);
+        }
+        currentDate.setDate(currentDate.getDate() + 7);
+    }
+    
+    return weeks;
+}
+
+function getCurrentWeekStart() {
+    const now = getEATTime();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+}
+
 function isMidweekAllowed() {
     if (TEST_MODE) return true;
     const now = getEATTime();
     const day = now.getDay();
     const hour = now.getHours();
-    if (day === 3 && hour >= 18 && hour < 21) return true;
+    if (day === 3 && hour >= 18 && hour < 22) return true;
     return false;
 }
 
@@ -346,13 +527,15 @@ function isSundayAllowed() {
 }
 
 function getCurrentAllowedType() {
-    if (isMidweekAllowed()) return "midweek";
-    if (isSundayAllowed()) return "sunday";
-    return null;
+    if (TEST_MODE) return 'both';
+    if (isMidweekAllowed()) return 'midweek';
+    if (isSundayAllowed()) return 'sunday';
+    return 'none';
 }
 
 function updateAccessUI() {
     const accessDiv = document.getElementById("accessStatus");
+    const allowedType = getCurrentAllowedType();
     
     if (TEST_MODE) {
         accessDiv.innerHTML = 'TEST MODE - Both forms available';
@@ -362,75 +545,264 @@ function updateAccessUI() {
         return;
     }
     
-    const allowedType = getCurrentAllowedType();
-    
-    if (allowedType === "midweek") {
-        accessDiv.innerHTML = 'OPEN - Midweek (Wed 6-9pm)';
-        accessDiv.style.background = "#164e2e";
+    if (allowedType === 'midweek') {
+        accessDiv.innerHTML = 'OPEN - Wednesday 6-10pm (Midweek Basonta)';
+        accessDiv.style.background = "#3b82f6";
         accessDiv.style.color = "white";
-    } else if (allowedType === "sunday") {
-        accessDiv.innerHTML = 'OPEN - Sunday (2-6pm)';
-        accessDiv.style.background = "#164e2e";
+    } else if (allowedType === 'sunday') {
+        accessDiv.innerHTML = 'OPEN - Sunday 2-6pm (Special Teams)';
+        accessDiv.style.background = "#10b981";
         accessDiv.style.color = "white";
     } else {
-        accessDiv.innerHTML = 'CLOSED - Wed 6-9pm & Sun 2-6pm EAT';
+        accessDiv.innerHTML = 'CLOSED - Wed 6-10pm & Sun 2-6pm EAT';
         accessDiv.style.background = "#631e1e";
         accessDiv.style.color = "white";
     }
 }
 
+function hasLeaderSubmittedToday(leaderName, basontaName, submissionType) {
+    const today = new Date().toDateString();
+    const dataToCheck = submissionType === 'midweek' ? globalMidweekData : globalSundayData;
+    
+    for (let i = 0; i < dataToCheck.length; i++) {
+        const item = dataToCheck[i];
+        const itemDate = item.Timestamp ? new Date(item.Timestamp).toDateString() : '';
+        let itemLeader = '';
+        let itemBasonta = '';
+        
+        if (submissionType === 'midweek') {
+            itemLeader = item.Leader || '';
+            itemBasonta = item['Basonta Name'] || '';
+        } else {
+            itemLeader = item['Sonta Leader'] || '';
+            itemBasonta = item['Basonta Name'] || '';
+        }
+        
+        if (itemLeader === leaderName && itemBasonta === basontaName && itemDate === today) {
+            return true;
+        }
+    }
+    return false;
+}
+
 async function loadData() {
     const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = '</table><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>';
     
     try {
-        const url = API_URL + '?action=read&type=basonta&sheet=Sheet1';
-        console.log('Fetching from:', url);
+        const midweekUrl = API_URL + '?action=read&type=basonta&sheet=Midweek';
+        const sundayUrl = API_URL + '?action=read&type=basonta&sheet=Sunday';
         
-        const response = await fetch(url);
-        const result = await response.json();
+        const midweekRes = await fetch(midweekUrl);
+        const sundayRes = await fetch(sundayUrl);
         
-        console.log('API Result:', result);
+        const midweekResult = await midweekRes.json();
+        const sundayResult = await sundayRes.json();
         
-        if (result.success && result.data) {
-            globalData = result.data;
-            console.log('Loaded', globalData.length, 'records from Basonta sheet');
+        if (midweekResult.success && midweekResult.data) {
+            globalMidweekData = midweekResult.data;
         } else {
-            globalData = [];
-            console.log('No data found or error:', result.error);
+            globalMidweekData = [];
         }
+        
+        if (sundayResult.success && sundayResult.data) {
+            globalSundayData = sundayResult.data;
+        } else {
+            globalSundayData = [];
+        }
+        
+        console.log('Loaded midweek:', globalMidweekData.length, 'sunday:', globalSundayData.length);
+        
+        const weekStart = getCurrentWeekStart();
+        currentWeekMidweekData = [];
+        currentWeekSundayData = [];
+        historyMidweekData = [];
+        historySundayData = [];
+        
+        for (let i = 0; i < globalMidweekData.length; i++) {
+            const item = globalMidweekData[i];
+            const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
+            if (itemDate && itemDate >= weekStart) {
+                currentWeekMidweekData.push(item);
+            } else {
+                historyMidweekData.push(item);
+            }
+        }
+        
+        for (let i = 0; i < globalSundayData.length; i++) {
+            const item = globalSundayData[i];
+            const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
+            if (itemDate && itemDate >= weekStart) {
+                currentWeekSundayData.push(item);
+            } else {
+                historySundayData.push(item);
+            }
+        }
+        
+        updateBasontaFilter();
+        populateMonthSelector();
     } catch (error) {
         console.error("Error loading data:", error);
-        globalData = [];
+        globalMidweekData = [];
+        globalSundayData = [];
+        currentWeekMidweekData = [];
+        currentWeekSundayData = [];
+        historyMidweekData = [];
+        historySundayData = [];
     }
     
     applyFilters();
 }
 
+function updateBasontaFilter() {
+    const basontaSelect = document.getElementById('basontaSelectFilter');
+    const basontaNames = new Set();
+    
+    const dataToUse = currentView === 'current' ? [...currentWeekMidweekData, ...currentWeekSundayData] : [...historyMidweekData, ...historySundayData];
+    
+    for (let i = 0; i < dataToUse.length; i++) {
+        const name = dataToUse[i]['Basonta Name'] || '';
+        if (name) {
+            basontaNames.add(name);
+        }
+    }
+    
+    let options = '<option value="">Select Basonta</option>';
+    const sortedNames = Array.from(basontaNames).sort();
+    for (let i = 0; i < sortedNames.length; i++) {
+        options += '<option value="' + sortedNames[i] + '">' + sortedNames[i] + '</option>';
+    }
+    basontaSelect.innerHTML = options;
+}
+
+function populateMonthSelector() {
+    const monthSelect = document.getElementById('monthSelect');
+    const months = new Set();
+    
+    const allHistory = [...historyMidweekData, ...historySundayData];
+    
+    for (let i = 0; i < allHistory.length; i++) {
+        const item = allHistory[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const monthKey = year + '-' + month;
+            const monthLabel = getMonthName(month) + ' ' + year;
+            months.add(JSON.stringify({ key: monthKey, label: monthLabel, year: year, month: month }));
+        }
+    }
+    
+    let options = '<option value="">Select Month</option>';
+    const sortedMonths = Array.from(months).map(function(m) { return JSON.parse(m); }).sort(function(a, b) {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+    });
+    
+    for (let i = 0; i < sortedMonths.length; i++) {
+        const m = sortedMonths[i];
+        options += '<option value="' + m.key + '">' + m.label + '</option>';
+    }
+    monthSelect.innerHTML = options;
+}
+
+function updateWeekSelector() {
+    const monthSelect = document.getElementById('monthSelect');
+    const weekSelect = document.getElementById('weekSelect');
+    const selectedMonthValue = monthSelect.value;
+    
+    if (!selectedMonthValue) {
+        weekSelect.innerHTML = '<option value="">All Weeks</option>';
+        return;
+    }
+    
+    const parts = selectedMonthValue.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    
+    const weeks = getWeeksInMonth(year, month);
+    
+    let options = '<option value="">All Weeks</option>';
+    for (let i = 0; i < weeks.length; i++) {
+        options += '<option value="' + weeks[i] + '">Week ' + weeks[i] + '</option>';
+    }
+    weekSelect.innerHTML = options;
+}
+
+function filterHistoryByMonthWeek(data) {
+    if (!selectedMonth) return data;
+    
+    const parts = selectedMonth.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    
+    let filtered = data.filter(function(item) {
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        return date && date.getFullYear() === year && date.getMonth() === month;
+    });
+    
+    if (selectedWeek && selectedWeek !== '') {
+        const weekNum = parseInt(selectedWeek);
+        filtered = filtered.filter(function(item) {
+            const date = item.Timestamp ? new Date(item.Timestamp) : null;
+            return date && getWeekNumber(date) === weekNum;
+        });
+    }
+    
+    return filtered;
+}
+
 function applyFilters() {
-    const searchTerm = document.getElementById("searchBasonta").value.toLowerCase();
+    const selectedBasonta = document.getElementById("basontaSelectFilter").value;
     const typeFilter = document.getElementById("filterType").value;
     
-    filteredData = [];
-    for (let i = 0; i < globalData.length; i++) {
-        const item = globalData[i];
-        const name = (item['Basonta Name'] || "").toLowerCase();
-        const matchesSearch = name.indexOf(searchTerm) !== -1;
+    let midweekSource = [];
+    let sundaySource = [];
+    
+    if (currentView === 'current') {
+        midweekSource = currentWeekMidweekData;
+        sundaySource = currentWeekSundayData;
+    } else {
+        let historyMidweekFiltered = historyMidweekData;
+        let historySundayFiltered = historySundayData;
         
-        let submissionType = 'midweek';
-        if (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] || item['Stage Attendance']) {
-            submissionType = 'sunday';
+        if (selectedMonth) {
+            historyMidweekFiltered = filterHistoryByMonthWeek(historyMidweekData);
+            historySundayFiltered = filterHistoryByMonthWeek(historySundayData);
         }
         
-        const matchesType = (typeFilter === "") || (submissionType === typeFilter);
+        midweekSource = historyMidweekFiltered;
+        sundaySource = historySundayFiltered;
+    }
+    
+    filteredData = [];
+    
+    for (let i = 0; i < midweekSource.length; i++) {
+        const item = midweekSource[i];
+        const basontaName = item['Basonta Name'] || '';
+        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
+        const matchesType = (typeFilter === "") || (typeFilter === 'midweek');
         
-        if (matchesSearch && matchesType) {
-            item.submissionType = submissionType;
+        if (matchesBasonta && matchesType) {
+            item.submissionType = 'midweek';
+            filteredData.push(item);
+        }
+    }
+    
+    for (let i = 0; i < sundaySource.length; i++) {
+        const item = sundaySource[i];
+        const basontaName = item['Basonta Name'] || '';
+        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
+        const matchesType = (typeFilter === "") || (typeFilter === 'sunday');
+        
+        if (matchesBasonta && matchesType) {
+            item.submissionType = 'sunday';
             filteredData.push(item);
         }
     }
     
     renderTable();
+    updateStats();
     updateChart();
 }
 
@@ -468,13 +840,13 @@ function renderTable() {
         const typeText = (d.submissionType === 'midweek') ? 'Midweek' : 'Sunday';
         const nameText = escapeHtml(d['Basonta Name'] || '');
         const leaderText = escapeHtml(d['Leader'] || d['Sonta Leader'] || '');
-        const governorshipText = escapeHtml(d.Governorship || '');
+        const governorshipTeam = escapeHtml(d['Governorship'] || d['Team'] || '');
         const dateText = d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '';
         
         html += '<tr>';
         html += '<td>' + nameText + '<\/td>';
         html += '<td>' + leaderText + '<\/td>';
-        html += '<td>' + governorshipText + '<\/td>';
+        html += '<td>' + governorshipTeam + '<\/td>';
         html += '<td>' + typeText + '<\/td>';
         html += '<td>' + attendance + '<\/td>';
         html += '<td>' + newConverts + '<\/td>';
@@ -487,45 +859,100 @@ function renderTable() {
     tbody.innerHTML = html;
 }
 
+function updateStats() {
+    let totalAttendance = 0;
+    let totalOffering = 0;
+    let totalNewConverts = 0;
+    let totalBasontasConducted = filteredData.length;
+    
+    for (let i = 0; i < filteredData.length; i++) {
+        const item = filteredData[i];
+        
+        if (item.submissionType === 'midweek') {
+            totalAttendance += parseFloat(item['Total Attendance']) || 0;
+            totalOffering += parseFloat(item.Offering) || 0;
+            totalNewConverts += parseFloat(item['New Converts']) || 0;
+        } else {
+            totalAttendance += (parseFloat(item['Meeting Attendance']) || 0) + (parseFloat(item['Stage Attendance']) || 0) + (parseFloat(item['Church Attendance']) || 0);
+            totalNewConverts += parseFloat(item['Deep Sea Fishing']) || 0;
+        }
+    }
+    
+    document.getElementById('statsContainer').innerHTML = '<div class="stat-card"><h4>Total Attendance</h4><div class="value">' + totalAttendance + '</div></div><div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div><div class="stat-card"><h4>Total New Converts</h4><div class="value">' + totalNewConverts + '</div></div><div class="stat-card"><h4>Total Basontas Conducted</h4><div class="value">' + totalBasontasConducted + '</div></div>';
+}
+
+function getAllWeeksInRange(data) {
+    const weeks = new Set();
+    for (let i = 0; i < data.length; i++) {
+        const item = data[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (date) {
+            const weekLabel = getWeekLabel(date);
+            weeks.add(weekLabel);
+        }
+    }
+    return Array.from(weeks).sort();
+}
+
+function getDataForChart() {
+    if (currentView === 'current') {
+        return [...currentWeekMidweekData, ...currentWeekSundayData];
+    } else {
+        let historyCombined = [...historyMidweekData, ...historySundayData];
+        if (selectedMonth) {
+            historyCombined = filterHistoryByMonthWeek(historyCombined);
+        }
+        return historyCombined;
+    }
+}
+
 function updateChart() {
     const ctx = document.getElementById("chart").getContext("2d");
     if (chart) chart.destroy();
     
-    if (filteredData.length === 0) {
+    let chartData = getDataForChart();
+    
+    if (chartData.length === 0) {
         chart = new Chart(ctx, { type: 'line', data: { labels: [], datasets: [] } });
         return;
     }
     
+    const allWeeks = getAllWeeksInRange(chartData);
     const weekMap = new Map();
-    for (let i = 0; i < filteredData.length; i++) {
-        const item = filteredData[i];
-        let date = item.Timestamp ? new Date(item.Timestamp) : new Date();
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const week = Math.ceil(date.getDate() / 7);
-        const weekLabel = getMonthName(month) + ' Week ' + week;
-        
-        if (!weekMap.has(weekLabel)) {
-            weekMap.set(weekLabel, { attendance: 0, offering: 0 });
-        }
-        const curr = weekMap.get(weekLabel);
-        
-        if (item.submissionType === 'midweek') {
-            curr.attendance += item['Total Attendance'] || 0;
-        } else {
-            curr.attendance += (item['Meeting Attendance'] || 0) + (item['Stage Attendance'] || 0) + (item['Church Attendance'] || 0);
-        }
-        curr.offering += item.Offering || 0;
+    
+    for (let i = 0; i < allWeeks.length; i++) {
+        weekMap.set(allWeeks[i], { attendance: 0, offering: 0, newConverts: 0 });
     }
     
-    const sortedWeeks = Array.from(weekMap.keys()).sort();
+    for (let i = 0; i < chartData.length; i++) {
+        const item = chartData[i];
+        const date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+        const weekLabel = getWeekLabel(date);
+        
+        if (weekMap.has(weekLabel)) {
+            const curr = weekMap.get(weekLabel);
+            
+            if (item.submissionType === 'midweek') {
+                curr.attendance += parseFloat(item['Total Attendance']) || 0;
+                curr.offering += parseFloat(item.Offering) || 0;
+                curr.newConverts += parseFloat(item['New Converts']) || 0;
+            } else {
+                curr.attendance += (parseFloat(item['Meeting Attendance']) || 0) + (parseFloat(item['Stage Attendance']) || 0) + (parseFloat(item['Church Attendance']) || 0);
+                curr.newConverts += parseFloat(item['Deep Sea Fishing']) || 0;
+            }
+        }
+    }
+    
+    const sortedWeeks = allWeeks.sort();
     const attendanceData = [];
     const offeringData = [];
+    const newConvertsData = [];
     
     for (let i = 0; i < sortedWeeks.length; i++) {
         const w = sortedWeeks[i];
         attendanceData.push(weekMap.get(w).attendance);
         offeringData.push(weekMap.get(w).offering);
+        newConvertsData.push(weekMap.get(w).newConverts);
     }
     
     chart = new Chart(ctx, {
@@ -534,16 +961,19 @@ function updateChart() {
             labels: sortedWeeks,
             datasets: [
                 { label: 'Total Attendance', data: attendanceData, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.2 },
-                { label: 'Offering (KES)', data: offeringData, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.2 }
+                { label: 'Offering (KES)', data: offeringData, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.2, yAxisID: 'y1' },
+                { label: 'New Converts', data: newConvertsData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { title: { display: true, text: 'Attendance / Converts', color: '#fff' } },
+                y1: { position: 'right', title: { display: true, text: 'Offering (KES)', color: '#f59e0b' }, grid: { drawOnChartArea: false } }
+            }
+        }
     });
-}
-
-function getMonthName(monthIndex) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[monthIndex];
 }
 
 function showSummaryModal(summaryText) {
@@ -579,6 +1009,47 @@ function setupModalButtons() {
     };
 }
 
+function switchView(view) {
+    currentView = view;
+    
+    const currentBtn = document.getElementById('viewCurrentBtn');
+    const historyBtn = document.getElementById('viewHistoryBtn');
+    const historyFilters = document.getElementById('historyFilters');
+    
+    if (view === 'current') {
+        currentBtn.classList.add('active');
+        historyBtn.classList.remove('active');
+        historyFilters.style.display = 'none';
+        selectedMonth = '';
+        selectedWeek = '';
+        document.getElementById('monthSelect').value = '';
+        document.getElementById('weekSelect').innerHTML = '<option value="">All Weeks</option>';
+    } else {
+        currentBtn.classList.remove('active');
+        historyBtn.classList.add('active');
+        historyFilters.style.display = 'flex';
+        populateMonthSelector();
+    }
+    
+    updateBasontaFilter();
+    applyFilters();
+}
+
+function onMonthChange() {
+    const monthSelect = document.getElementById('monthSelect');
+    selectedMonth = monthSelect.value;
+    updateWeekSelector();
+    selectedWeek = '';
+    document.getElementById('weekSelect').value = '';
+    applyFilters();
+}
+
+function onWeekChange() {
+    const weekSelect = document.getElementById('weekSelect');
+    selectedWeek = weekSelect.value;
+    applyFilters();
+}
+
 function switchFormType(type) {
     currentFormType = type;
     renderFormByType();
@@ -605,9 +1076,18 @@ function renderFormByType() {
     const container = document.getElementById("formContainer");
     const allowedType = getCurrentAllowedType();
     
-    if (!allowedType && !TEST_MODE) {
-        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Wednesday 6:00 PM - 9:00 PM (Midweek)<br>Sunday 2:00 PM - 6:00 PM<br>EAT Timezone<\/div>';
+    if (allowedType === 'none' && !TEST_MODE) {
+        container.innerHTML = '<div class="lock-message">Submissions allowed:<br>Wednesday 6:00 PM - 10:00 PM (Midweek Basonta)<br>Sunday 2:00 PM - 6:00 PM (Special Teams)<br>EAT Timezone</div>';
         return;
+    }
+    
+    let submissionTypeHtml = '';
+    if (allowedType === 'midweek') {
+        submissionTypeHtml = '<div class="submission-type-indicator midweek"><strong>Wednesday Submission (6pm-10pm)</strong><br>Submit: Midweek Basonta Report</div>';
+    } else if (allowedType === 'sunday') {
+        submissionTypeHtml = '<div class="submission-type-indicator sunday"><strong>Sunday Submission (2pm-6pm)</strong><br>Submit: Special Teams Report</div>';
+    } else if (TEST_MODE) {
+        submissionTypeHtml = '<div class="submission-type-indicator"><strong>TEST MODE</strong><br>Both forms available for testing</div>';
     }
     
     if (currentFormType === "midweek") {
@@ -616,7 +1096,7 @@ function renderFormByType() {
             leaderOptions += '<option value="' + LEADERS_LIST[i] + '">' + LEADERS_LIST[i] + '</option>';
         }
         
-        container.innerHTML = '<div class="submission-type"><div class="type-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-9pm)</div><div class="type-btn" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Basonta Name</label><input type="text" id="basontaName" placeholder="Basonta Name" required><label>Basonta Fellowship Leader</label><select id="leaderName" required><option value="">Select Leader</option>' + leaderOptions + '</select><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
+        container.innerHTML = submissionTypeHtml + '<div class="submission-type"><div class="type-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-10pm)</div><div class="type-btn" onclick="switchFormType(\'sunday\')">Sunday Report (Special Teams)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Basonta Name</label><input type="text" id="basontaName" placeholder="Basonta Name" required><label>Basonta Fellowship Leader</label><select id="leaderName" required><option value="">Select Leader</option>' + leaderOptions + '</select><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
     } else {
         let basontaOptions = '';
         for (let i = 0; i < BASONTA_NAMES.length; i++) {
@@ -628,7 +1108,7 @@ function renderFormByType() {
             leaderOptions += '<option value="' + LEADERS_LIST[i] + '">' + LEADERS_LIST[i] + '</option>';
         }
         
-        container.innerHTML = '<div class="submission-type"><div class="type-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-9pm)</div><div class="type-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Basonta Name</label><select id="basontaName" required><option value="">Select Basonta</option>' + basontaOptions + '</select><label>Sonta Leader Name</label><select id="sontaLeader" required><option value="">Select Leader</option>' + leaderOptions + '</select><label>Meeting Attendance</label><input type="number" id="meetingAttendance" value="0"><label>Stage Attendance</label><input type="number" id="stageAttendance" value="0"><label>Church Attendance</label><input type="number" id="churchAttendance" value="0"><label>Deep Sea Fishing (New Converts)</label><input type="number" id="deepSeaFishing" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Sunday Report</button>';
+        container.innerHTML = submissionTypeHtml + '<div class="submission-type"><div class="type-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-10pm)</div><div class="type-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (Special Teams)</div></div><label>Basonta Name</label><select id="basontaName" required><option value="">Select Basonta</option>' + basontaOptions + '</select><label>Sonta Leader Name</label><select id="sontaLeader" required><option value="">Select Leader</option>' + leaderOptions + '</select><label>Meeting Attendance</label><input type="number" id="meetingAttendance" value="0"><label>Stage Attendance</label><input type="number" id="stageAttendance" value="0"><label>Church Attendance</label><input type="number" id="churchAttendance" value="0"><label>Deep Sea Fishing (New Converts)</label><input type="number" id="deepSeaFishing" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Sunday Report</button>';
     }
     
     const fileInput = document.getElementById("imageUpload");
@@ -653,7 +1133,13 @@ function renderForm() {
 }
 
 async function submitData() {
+    if (isSubmitting) {
+        document.getElementById("status").innerHTML = '<span class="error-msg">Please wait, already submitting...</span>';
+        return;
+    }
+    
     const status = document.getElementById("status");
+    const allowedType = getCurrentAllowedType();
     
     const fileInput = document.getElementById("imageUpload");
     const file = fileInput ? fileInput.files[0] : null;
@@ -682,12 +1168,17 @@ async function submitData() {
         if (!basontaName) { status.innerHTML = '<span class="error-msg">Basonta name required</span>'; return; }
         if (!leaderName) { status.innerHTML = '<span class="error-msg">Leader name required</span>'; return; }
         
+        if (hasLeaderSubmittedToday(leaderName, basontaName, 'midweek')) {
+            status.innerHTML = '<span class="error-msg">You have already submitted a report for this Basonta today. Duplicate submissions are not allowed.</span>';
+            return;
+        }
+        
         status.innerHTML = '<span style="color: #3b82f6;">Submitting...</span>';
         
         const params = new URLSearchParams();
         params.append('action', 'write');
         params.append('type', 'basonta');
-        params.append('sheet', 'Sheet1');
+        params.append('sheet', 'Midweek');
         params.append('Basonta Name', basontaName);
         params.append('Leader', leaderName);
         params.append('Governorship', governorship);
@@ -731,12 +1222,15 @@ Offering: KES ${offering}`;
                 setTimeout(async function() {
                     await loadData();
                     status.innerHTML = '';
+                    isSubmitting = false;
                 }, 2000);
             } else {
                 status.innerHTML = '<span class="error-msg">Submission failed</span>';
+                isSubmitting = false;
             }
         } catch (error) {
             status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+            isSubmitting = false;
         }
         
     } else {
@@ -750,15 +1244,20 @@ Offering: KES ${offering}`;
         if (!basontaName) { status.innerHTML = '<span class="error-msg">Basonta name required</span>'; return; }
         if (!sontaLeader) { status.innerHTML = '<span class="error-msg">Sonta leader name required</span>'; return; }
         
+        if (hasLeaderSubmittedToday(sontaLeader, basontaName, 'sunday')) {
+            status.innerHTML = '<span class="error-msg">You have already submitted a report for this Basonta today. Duplicate submissions are not allowed.</span>';
+            return;
+        }
+        
         status.innerHTML = '<span style="color: #3b82f6;">Submitting...</span>';
         
         const params = new URLSearchParams();
         params.append('action', 'write');
         params.append('type', 'basonta');
-        params.append('sheet', 'Sheet1');
+        params.append('sheet', 'Sunday');
         params.append('Basonta Name', basontaName);
         params.append('Sonta Leader', sontaLeader);
-        params.append('Submission Type', 'sunday');
+        params.append('Team', basontaName);
         params.append('Meeting Attendance', meetingAttendance);
         params.append('Stage Attendance', stageAttendance);
         params.append('Church Attendance', churchAttendance);
@@ -801,12 +1300,15 @@ Deep sea fishing: ${deepSea}`;
                 setTimeout(async function() {
                     await loadData();
                     status.innerHTML = '';
+                    isSubmitting = false;
                 }, 2000);
             } else {
                 status.innerHTML = '<span class="error-msg">Submission failed</span>';
+                isSubmitting = false;
             }
         } catch (error) {
             status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+            isSubmitting = false;
         }
     }
 }
@@ -823,14 +1325,18 @@ function exportToExcel() {
     XLSX.writeFile(wb, 'Basonta_Reports_' + dateStr + '.xlsx');
 }
 
-document.getElementById("searchBasonta")?.addEventListener("input", function() { applyFilters(); });
+document.getElementById("basontaSelectFilter")?.addEventListener("change", function() { applyFilters(); });
 document.getElementById("filterType")?.addEventListener("change", function() { applyFilters(); });
 document.getElementById("resetFilters")?.addEventListener("click", function() {
-    document.getElementById("searchBasonta").value = "";
+    document.getElementById("basontaSelectFilter").value = "";
     document.getElementById("filterType").value = "";
     applyFilters();
 });
 document.getElementById("exportBtn")?.addEventListener("click", exportToExcel);
+document.getElementById("viewCurrentBtn")?.addEventListener("click", function() { switchView('current'); });
+document.getElementById("viewHistoryBtn")?.addEventListener("click", function() { switchView('history'); });
+document.getElementById("monthSelect")?.addEventListener("change", function() { onMonthChange(); });
+document.getElementById("weekSelect")?.addEventListener("change", function() { onWeekChange(); });
 
 window.switchFormType = switchFormType;
 
