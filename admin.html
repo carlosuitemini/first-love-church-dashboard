@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0B1215">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.jpeg">
+    <title>Command Center - Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #0B1215;
+            color: #E0E0E0;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(11,18,21,0.95);
+            backdrop-filter: blur(20px);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0,128,128,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            object-fit: cover;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #FFBF00;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            background: rgba(20,30,35,0.8);
+            padding: 8px 20px;
+            border-bottom: 1px solid rgba(0,128,128,0.3);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 30px;
+            color: #E0E0E0;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: #008080;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: rgba(0,128,128,0.2);
+        }
+
+        .main-content {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .kpi-card {
+            background: rgba(20,30,35,0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(0,128,128,0.3);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: rgba(224,224,224,0.6);
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #FFBF00;
+        }
+
+        .kpi-trend {
+            font-size: 12px;
+            margin-top: 8px;
+            color: #10b981;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: rgba(20,30,35,0.5);
+            padding: 16px;
+            border-radius: 20px;
+        }
+
+        .filter-select {
+            padding: 10px 16px;
+            background: rgba(11,18,21,0.8);
+            border: 1px solid rgba(0,128,128,0.4);
+            border-radius: 12px;
+            color: #E0E0E0;
+            min-width: 140px;
+            cursor: pointer;
+        }
+
+        .chart-container {
+            background: rgba(20,30,35,0.5);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 28px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #FFBF00;
+        }
+
+        canvas {
+            max-height: 350px;
+            width: 100%;
+        }
+
+        .insights-panel {
+            background: rgba(20,30,35,0.5);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 28px;
+            border-left: 4px solid #FFBF00;
+        }
+
+        .insights-title {
+            font-size: 14px;
+            color: #FFBF00;
+            margin-bottom: 12px;
+        }
+
+        .insight-item {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .table-wrapper {
+            background: rgba(20,30,35,0.5);
+            border-radius: 20px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .data-table th {
+            color: #FFBF00;
+            font-weight: 600;
+        }
+
+        .export-btn {
+            background: #008080;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #FFBF00;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content { padding: 16px; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .filter-bar { flex-direction: column; }
+            .filter-select { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="logo-area">
+        <img src="logo.jpeg" alt="FLC" class="logo-img" onerror="this.src='https://via.placeholder.com/40/0a2540/ffffff?text=FLC'">
+        <div class="title">Command Center</div>
+    </div>
+    <button class="export-btn" id="exportBtn">Export Data</button>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn active" data-module="bacenta">Bacenta</button>
+    <button class="tab-btn" data-module="basonta">Basonta</button>
+    <button class="tab-btn" data-module="governorship">Governorship</button>
+</div>
+
+<div class="main-content">
+    <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card"><div class="kpi-label">Loading...</div><div class="kpi-value">-</div></div>
+    </div>
+
+    <div class="filter-bar">
+        <select id="timeFilter" class="filter-select">
+            <option value="5weeks">Last 5 Weeks</option>
+            <option value="week">Current Week</option>
+            <option value="month">This Month</option>
+            <option value="lastmonth">Last Month</option>
+        </select>
+        <select id="regionFilter" class="filter-select">
+            <option value="">All Regions</option>
+            <option value="Juja">Juja</option>
+            <option value="KU">KU</option>
+            <option value="Kiriri">Kiriri</option>
+        </select>
+        <select id="leaderFilter" class="filter-select">
+            <option value="">All Leaders</option>
+        </select>
+        <button class="export-btn" id="applyFiltersBtn" style="background:#334155;">Apply Filters</button>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-title">Weekly Attendance Trends</div>
+        <canvas id="trendChart"></canvas>
+    </div>
+
+    <div class="insights-panel" id="insightsPanel">
+        <div class="insights-title">AI Insights</div>
+        <div class="insight-item">Select a module and apply filters to see insights...</div>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table" id="dataTable">
+            <thead><tr><th>Loading data...</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// ================= CONFIGURATION =================
+const API_URL = 'https://script.google.com/macros/s/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ/exec';
+
+let currentModule = 'bacenta';
+let rawData = [];
+let filteredData = [];
+let trendChart = null;
+
+// ================= DATA LOADING =================
+async function loadDataFromSheets() {
+    showLoading(true);
+    const url = `${API_URL}?action=read&type=${currentModule}&sheet=Sheet1`;
+    
+    try {
+        console.log('Fetching data from:', url);
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            rawData = result.data;
+            console.log(`Loaded ${rawData.length} records for ${currentModule}`);
+        } else {
+            console.error('Failed to load data:', result);
+            rawData = [];
+        }
+    } catch (error) {
+        console.error('Network error:', error);
+        rawData = [];
+    }
+    
+    populateLeaderFilter();
+    applyFilters();
+    showLoading(false);
+}
+
+function showLoading(show) {
+    const kpiGrid = document.getElementById('kpiGrid');
+    if (show) {
+        kpiGrid.innerHTML = '<div class="kpi-card"><div class="kpi-label"><span class="loading-spinner"></span> Loading data...</div><div class="kpi-value">-</div></div>';
+    }
+}
+
+// ================= HELPER FUNCTIONS =================
+function getWeekNumber(date) {
+    const d = new Date(date);
+    const dayOfMonth = d.getDate();
+    return Math.ceil(dayOfMonth / 7);
+}
+
+function getWeekLabel(date) {
+    const d = new Date(date);
+    const month = d.toLocaleString('default', { month: 'short' });
+    const week = getWeekNumber(d);
+    return `${month} Week ${week}`;
+}
+
+function getDateRange() {
+    const filter = document.getElementById('timeFilter').value;
+    const now = new Date();
+    let start, end = new Date();
+    
+    if (filter === 'week') {
+        const day = now.getDay();
+        const diff = day === 0 ? 6 : day - 1;
+        start = new Date(now);
+        start.setDate(now.getDate() - diff);
+        start.setHours(0, 0, 0, 0);
+    } else if (filter === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === 'lastmonth') {
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else {
+        start = new Date(now);
+        start.setDate(now.getDate() - 35);
+        start.setHours(0, 0, 0, 0);
+    }
+    return { start, end };
+}
+
+function normalizeGovernorship(gov) {
+    if (!gov) return '';
+    if (gov === 'Juja Governorship') return 'Juja';
+    if (gov === 'KU Governorship') return 'KU';
+    if (gov === 'Kiriri Governorship') return 'Kiriri';
+    return gov;
+}
+
+// ================= FILTERS =================
+function populateLeaderFilter() {
+    const leaders = new Set();
+    rawData.forEach(item => {
+        if (item.Leader) leaders.add(item.Leader);
+        if (item['Sonta Leader']) leaders.add(item['Sonta Leader']);
+    });
+    const select = document.getElementById('leaderFilter');
+    select.innerHTML = '<option value="">All Leaders</option>';
+    Array.from(leaders).sort().forEach(leader => {
+        select.innerHTML += `<option value="${leader}">${leader}</option>`;
+    });
+}
+
+function applyFilters() {
+    const { start, end } = getDateRange();
+    const region = document.getElementById('regionFilter').value;
+    const leader = document.getElementById('leaderFilter').value;
+    
+    filteredData = rawData.filter(item => {
+        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (!date || date < start || date > end) return false;
+        
+        let itemRegion = normalizeGovernorship(item.Governorship);
+        if (region && itemRegion !== region) return false;
+        
+        let itemLeader = item.Leader || item['Sonta Leader'] || '';
+        if (leader && itemLeader !== leader) return false;
+        
+        return true;
+    });
+    
+    updateKPIs();
+    updateChart();
+    updateTable();
+    generateInsights();
+}
+
+// ================= KPI CARDS =================
+function updateKPIs() {
+    let fellowshipTotal = 0;
+    let midweekTotal = 0;
+    let sundayTotal = 0;
+    let totalOffering = 0;
+    let totalReports = filteredData.length;
+    
+    filteredData.forEach(item => {
+        totalOffering += item.Offering || 0;
+        
+        if (currentModule === 'bacenta') {
+            fellowshipTotal += item['Fellowship Attendance'] || 0;
+        } else if (currentModule === 'basonta') {
+            const isSunday = (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] !== undefined);
+            if (isSunday) {
+                sundayTotal += item['Church Attendance'] || 0;
+            } else {
+                midweekTotal += item['Total Attendance'] || 0;
+            }
+        } else {
+            midweekTotal += item['Midweek Attendance'] || 0;
+            sundayTotal += item['Total Attendance'] || 0;
+        }
+    });
+    
+    let kpiHtml = '';
+    if (currentModule === 'bacenta') {
+        kpiHtml = `
+            <div class="kpi-card"><div class="kpi-label">Total Fellowship Attendance</div><div class="kpi-value">${fellowshipTotal.toLocaleString()}</div><div class="kpi-trend">Midweek meetings</div></div>
+            <div class="kpi-card"><div class="kpi-label">Total Offerings</div><div class="kpi-value">KES ${totalOffering.toLocaleString()}</div><div class="kpi-trend">Collected</div></div>
+            <div class="kpi-card"><div class="kpi-label">Reports Submitted</div><div class="kpi-value">${totalReports}</div><div class="kpi-trend">This period</div></div>
+            <div class="kpi-card"><div class="kpi-label">Active Leaders</div><div class="kpi-value">${new Set(filteredData.map(d => d.Leader)).size}</div><div class="kpi-trend">Unique reporters</div></div>
+        `;
+    } else if (currentModule === 'basonta') {
+        kpiHtml = `
+            <div class="kpi-card"><div class="kpi-label">Midweek Attendance</div><div class="kpi-value">${midweekTotal.toLocaleString()}</div><div class="kpi-trend">Basonta meetings</div></div>
+            <div class="kpi-card"><div class="kpi-label">Sunday Church Attendance</div><div class="kpi-value">${sundayTotal.toLocaleString()}</div><div class="kpi-trend">From Basontas</div></div>
+            <div class="kpi-card"><div class="kpi-label">Total Offerings</div><div class="kpi-value">KES ${totalOffering.toLocaleString()}</div><div class="kpi-trend">Collected</div></div>
+            <div class="kpi-card"><div class="kpi-label">Reports Submitted</div><div class="kpi-value">${totalReports}</div><div class="kpi-trend">This period</div></div>
+        `;
+    } else {
+        kpiHtml = `
+            <div class="kpi-card"><div class="kpi-label">Midweek Attendance</div><div class="kpi-value">${midweekTotal.toLocaleString()}</div><div class="kpi-trend">Governorship level</div></div>
+            <div class="kpi-card"><div class="kpi-label">Sunday Attendance</div><div class="kpi-value">${sundayTotal.toLocaleString()}</div><div class="kpi-trend">Church service</div></div>
+            <div class="kpi-card"><div class="kpi-label">Total Offerings</div><div class="kpi-value">KES ${totalOffering.toLocaleString()}</div><div class="kpi-trend">Collected</div></div>
+            <div class="kpi-card"><div class="kpi-label">Reports Submitted</div><div class="kpi-value">${totalReports}</div><div class="kpi-trend">This period</div></div>
+        `;
+    }
+    document.getElementById('kpiGrid').innerHTML = kpiHtml;
+}
+
+// ================= CHART =================
+function updateChart() {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    if (trendChart) trendChart.destroy();
+    
+    if (filteredData.length === 0) {
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+        return;
+    }
+    
+    const weekMap = new Map();
+    filteredData.forEach(item => {
+        const date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+        const weekLabel = getWeekLabel(date);
+        let attendance = 0;
+        
+        if (currentModule === 'bacenta') {
+            attendance = item['Fellowship Attendance'] || 0;
+        } else if (currentModule === 'basonta') {
+            const isSunday = (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] !== undefined);
+            attendance = isSunday ? (item['Church Attendance'] || 0) : (item['Total Attendance'] || 0);
+        } else {
+            const isMidweek = item['Midweek Attendance'] !== undefined;
+            attendance = isMidweek ? (item['Midweek Attendance'] || 0) : (item['Total Attendance'] || 0);
+        }
+        
+        weekMap.set(weekLabel, (weekMap.get(weekLabel) || 0) + attendance);
+    });
+    
+    const weeks = Array.from(weekMap.keys()).sort();
+    const attendanceData = weeks.map(w => weekMap.get(w));
+    
+    const offeringMap = new Map();
+    filteredData.forEach(item => {
+        const date = item.Timestamp ? new Date(item.Timestamp) : new Date();
+        const weekLabel = getWeekLabel(date);
+        offeringMap.set(weekLabel, (offeringMap.get(weekLabel) || 0) + (item.Offering || 0));
+    });
+    const offeringData = weeks.map(w => offeringMap.get(w) || 0);
+    
+    const datasets = [
+        {
+            label: 'Attendance',
+            data: attendanceData,
+            borderColor: '#008080',
+            borderWidth: 3,
+            fill: true,
+            backgroundColor: 'rgba(0,128,128,0.1)',
+            tension: 0.3,
+            pointBackgroundColor: '#FFBF00',
+            pointBorderColor: '#FFBF00'
+        }
+    ];
+    
+    if (offeringData.some(v => v > 0)) {
+        datasets.push({
+            label: 'Offerings (KES)',
+            data: offeringData,
+            borderColor: '#FFBF00',
+            borderWidth: 2,
+            fill: false,
+            tension: 0.3,
+            yAxisID: 'y1'
+        });
+    }
+    
+    trendChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: weeks, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                tooltip: { mode: 'index', intersect: false },
+                legend: { labels: { color: '#E0E0E0' } }
+            },
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#E0E0E0' },
+                    title: { display: true, text: 'Attendance', color: '#E0E0E0' }
+                },
+                y1: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: { color: '#FFBF00' },
+                    title: { display: true, text: 'Offerings (KES)', color: '#FFBF00' }
+                }
+            }
+        }
+    });
+}
+
+// ================= TABLE =================
+function updateTable() {
+    const headers = [];
+    const rows = [];
+    
+    if (currentModule === 'bacenta') {
+        headers.push('Leader', 'Governorship', 'Fellowship Attendance', 'Offering', 'Date');
+        filteredData.slice(0, 100).forEach(item => {
+            rows.push([
+                item.Leader || '',
+                normalizeGovernorship(item.Governorship),
+                item['Fellowship Attendance'] || 0,
+                item.Offering || 0,
+                item.Timestamp ? new Date(item.Timestamp).toLocaleDateString() : ''
+            ]);
+        });
+    } else if (currentModule === 'basonta') {
+        headers.push('Basonta Name', 'Leader', 'Type', 'Attendance', 'Offering', 'Date');
+        filteredData.slice(0, 100).forEach(item => {
+            const isSunday = (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] !== undefined);
+            const type = isSunday ? 'Sunday' : 'Midweek';
+            const attendance = isSunday ? (item['Church Attendance'] || 0) : (item['Total Attendance'] || 0);
+            rows.push([
+                item['Basonta Name'] || '',
+                item['Leader'] || item['Sonta Leader'] || '',
+                type,
+                attendance,
+                item.Offering || '-',
+                item.Timestamp ? new Date(item.Timestamp).toLocaleDateString() : ''
+            ]);
+        });
+    } else {
+        headers.push('Governorship', 'Pastor', 'Preacher', 'Midweek Attendance', 'Sunday Attendance', 'Offering', 'Date');
+        filteredData.slice(0, 100).forEach(item => {
+            rows.push([
+                normalizeGovernorship(item.Governorship),
+                item.Pastor || '-',
+                item.Preacher || '-',
+                item['Midweek Attendance'] || 0,
+                item['Total Attendance'] || 0,
+                item.Offering || 0,
+                item.Timestamp ? new Date(item.Timestamp).toLocaleDateString() : ''
+            ]);
+        });
+    }
+    
+    const thead = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    const tbody = rows.map(row => '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>').join('');
+    document.getElementById('dataTable').innerHTML = `<thead>${thead}</thead><tbody>${tbody || '<tr><td colspan="10">No data found</td></tr>'}</tbody>`;
+}
+
+// ================= INSIGHTS =================
+function generateInsights() {
+    let totalAtt = 0;
+    let totalOffering = 0;
+    
+    filteredData.forEach(item => {
+        if (currentModule === 'bacenta') {
+            totalAtt += item['Fellowship Attendance'] || 0;
+        } else if (currentModule === 'basonta') {
+            const isSunday = (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] !== undefined);
+            totalAtt += isSunday ? (item['Church Attendance'] || 0) : (item['Total Attendance'] || 0);
+        } else {
+            totalAtt += (item['Midweek Attendance'] || 0) + (item['Total Attendance'] || 0);
+        }
+        totalOffering += item.Offering || 0;
+    });
+    
+    const avgAtt = filteredData.length ? (totalAtt / filteredData.length).toFixed(1) : 0;
+    
+    const regionMap = new Map();
+    filteredData.forEach(item => {
+        let region = normalizeGovernorship(item.Governorship);
+        let att = 0;
+        if (currentModule === 'bacenta') att = item['Fellowship Attendance'] || 0;
+        else if (currentModule === 'basonta') att = (item['Church Attendance'] || item['Total Attendance'] || 0);
+        else att = (item['Midweek Attendance'] || 0) + (item['Total Attendance'] || 0);
+        regionMap.set(region, (regionMap.get(region) || 0) + att);
+    });
+    const topRegion = Array.from(regionMap.entries()).sort((a, b) => b[1] - a[1])[0];
+    
+    document.getElementById('insightsPanel').innerHTML = `
+        <div class="insights-title">AI Insights</div>
+        <div class="insight-item">Average attendance per report: ${avgAtt} people</div>
+        <div class="insight-item">Highest performing region: ${topRegion ? topRegion[0] : 'N/A'} with ${topRegion ? topRegion[1] : 0} total attendance</div>
+        <div class="insight-item">Total offerings collected: KES ${totalOffering.toLocaleString()}</div>
+        <div class="insight-item">Total reports analyzed: ${filteredData.length}</div>
+    `;
+}
+
+// ================= EXPORT =================
+function exportToExcel() {
+    if (filteredData.length === 0) {
+        alert('No data to export');
+        return;
+    }
+    const ws = XLSX.utils.json_to_sheet(filteredData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, currentModule);
+    XLSX.writeFile(wb, `${currentModule}_data_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ================= MODULE SWITCHING =================
+function switchModule(module) {
+    currentModule = module;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.tab-btn[data-module="${module}"]`).classList.add('active');
+    loadDataFromSheets();
+}
+
+// ================= EVENT LISTENERS =================
+document.getElementById('applyFiltersBtn').addEventListener('click', applyFilters);
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+document.getElementById('timeFilter').addEventListener('change', applyFilters);
+document.getElementById('regionFilter').addEventListener('change', applyFilters);
+document.getElementById('leaderFilter').addEventListener('change', applyFilters);
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchModule(btn.dataset.module));
+});
+
+// ================= INIT =================
+loadDataFromSheets();
+</script>
+</body>
+</html>

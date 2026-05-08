@@ -106,19 +106,6 @@
             background: #4b5563;
             cursor: not-allowed;
         }
-        table {
-            width: 100%;
-            margin-top: 10px;
-            border-collapse: collapse;
-            overflow-x: auto;
-            display: block;
-        }
-        td, th {
-            padding: 8px;
-            border-bottom: 1px solid #333;
-            text-align: left;
-            white-space: nowrap;
-        }
         .filter-bar {
             display: flex;
             gap: 10px;
@@ -127,7 +114,7 @@
         }
         .filter-bar select {
             flex: 1;
-            min-width: 180px;
+            min-width: 200px;
             margin-top: 0;
         }
         .history-filters {
@@ -169,10 +156,6 @@
         }
         .type-btn.active {
             background: #2563eb;
-        }
-        .type-btn.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
         .success-msg {
             color: #10b981;
@@ -300,6 +283,52 @@
             background: #1e3a2f;
             border-left: 4px solid #10b981;
         }
+        .dashboard-header {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #1e293b;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .dashboard-header h4 {
+            margin: 0;
+            color: #fbbf24;
+        }
+        .data-table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+        .data-table th, .data-table td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        .data-table th {
+            background: #1e293b;
+            color: #fbbf24;
+            font-weight: 600;
+        }
+        .notification-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 2001;
+            animation: slideIn 0.3s ease;
+            font-size: 14px;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
         @media (max-width: 768px) {
             body { padding: 10px; }
             .panel { padding: 15px; }
@@ -331,12 +360,20 @@
     </div>
 
     <div class="panel">
+        <div class="submission-type">
+            <div id="midweekTabBtn" class="type-btn active" onclick="switchDashboardView('midweek')">Midweek Report Dashboard</div>
+            <div id="sundayTabBtn" class="type-btn" onclick="switchDashboardView('sunday')">Sunday Report Dashboard</div>
+        </div>
+        
+        <div id="dashboardHeader" class="dashboard-header">
+            <h4 id="dashboardTitle">Midweek Report Dashboard - Individual Basonta Reports</h4>
+        </div>
+        
         <div class="view-controls">
             <div id="viewCurrentBtn" class="view-btn active">Current Week</div>
             <div id="viewHistoryBtn" class="view-btn">History</div>
         </div>
         
-        <!-- History Filters (hidden by default) -->
         <div id="historyFilters" class="history-filters" style="display: none;">
             <select id="monthSelect">
                 <option value="">Select Month</option>
@@ -348,20 +385,15 @@
         
         <h3>Dashboard</h3>
         <div class="stats-container" id="statsContainer">
-            <div class="stat-card"><h4>Total Attendance</h4><div class="value">-</div></div>
-            <div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">-</div></div>
-            <div class="stat-card"><h4>Total New Converts</h4><div class="value">-</div></div>
-            <div class="stat-card"><h4>Total Basontas Conducted</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4 id="stat1Title">Total Attendance</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4 id="stat2Title">Total Offerings (KES)</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4 id="stat3Title">Total New Converts</h4><div class="value">-</div></div>
+            <div class="stat-card"><h4 id="stat4Title">Total Basontas</h4><div class="value">-</div></div>
         </div>
         
         <div class="filter-bar">
             <select id="basontaSelectFilter">
                 <option value="">Select Basonta</option>
-            </select>
-            <select id="filterType">
-                <option value="">All Submissions</option>
-                <option value="midweek">Midweek (Basonta)</option>
-                <option value="sunday">Sunday (Special Teams)</option>
             </select>
             <button id="resetFilters">Reset</button>
         </div>
@@ -372,30 +404,19 @@
         
         <button id="exportBtn">Export Excel</button>
         
-        <div style="overflow-x: auto; margin-top: 20px;">
-            <table id="dataTable">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Leader</th>
-                        <th>Governorship/Team</th>
-                        <th>Type</th>
-                        <th>Attendance</th>
-                        <th>New Converts</th>
-                        <th>First Timers</th>
-                        <th>Offering</th>
-                        <th>Submitted</th>
-                    </tr>
+        <div class="data-table-wrapper">
+            <table class="data-table" id="dataTable">
+                <thead id="tableHeader">
+                    <tr id="headerRow"></tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>
+                    <tr><td colspan="8" style="text-align:center">Loading data...<\/td><\/tr>
                 </tbody>
             <\/table>
         <\/div>
     <\/div>
 <\/div>
 
-<!-- Summary Modal -->
 <div id="summaryModal" class="modal">
     <div class="modal-content">
         <h3>Report Summary</h3>
@@ -406,19 +427,17 @@
 </div>
 
 <script>
-// Basonta Dashboard - Complete Updated Version with Monday-Sunday Weeks
-const API_URL = 'https:\/\/script.google.com\/macros\/s\/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ\/exec';
+// BASONTA DASHBOARD - WITH "OTHER" OPTION FOR MIDWEEK LEADER
+const API_URL = 'https://script.google.com/macros/s/AKfycbyBLNfetfiwsDw9696B6AqO7neyhuGjuO933LZT9fTECXINsSj0t_AGPjsdb-r8yeA3CQ/exec';
 const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
 const TEST_MODE = false;
 
-let globalMidweekData = [];
-let globalSundayData = [];
-let currentWeekMidweekData = [];
-let currentWeekSundayData = [];
-let historyMidweekData = [];
-let historySundayData = [];
+let globalData = [];
+let currentWeekData = [];
+let historyData = [];
 let filteredData = [];
 let currentView = 'current';
+let currentDashboardView = 'midweek';
 let chart;
 let isSubmitting = false;
 let currentFormType = 'midweek';
@@ -426,8 +445,20 @@ let selectedMonth = '';
 let selectedWeek = '';
 
 const BASONTA_NAMES = ['GLC CHOIR', 'DANCING STARS', 'AIRPORT STARS', 'USHERS', 'MEDIA', 'FLOLLYWOOD STARS'];
-
 const LEADERS_LIST = ['Evans Okumu', 'Paul Webi', 'Deborah Njorogex', 'Friend Mwaura', 'Stella Njambi', 'Charisma Angel', 'Perkins Katisa', 'Tanyasis', 'Joseph Misunga', 'Austin Peter', 'Beatrice Mueni', 'George Gute', 'Omaset Linda', 'Edwin Omondi', 'Abigail Mbogo'];
+
+function showNotification(message) {
+    let toast = document.getElementById('dynamicToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'dynamicToast';
+        toast.className = 'notification-toast';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = message;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
 
 function getEATTime() {
     const now = new Date();
@@ -483,10 +514,7 @@ function getWeeksInMonth(year, month) {
     const weeks = [];
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    
     let currentDate = new Date(firstDay);
-    let currentWeek = 1;
-    
     while (currentDate <= lastDay) {
         const weekNum = getWeekNumber(currentDate);
         if (!weeks.includes(weekNum)) {
@@ -494,7 +522,6 @@ function getWeeksInMonth(year, month) {
         }
         currentDate.setDate(currentDate.getDate() + 7);
     }
-    
     return weeks;
 }
 
@@ -560,12 +587,47 @@ function updateAccessUI() {
     }
 }
 
+function switchDashboardView(view) {
+    currentDashboardView = view;
+    
+    const midweekBtn = document.getElementById('midweekTabBtn');
+    const sundayBtn = document.getElementById('sundayTabBtn');
+    const dashboardTitle = document.getElementById('dashboardTitle');
+    const statsContainer = document.getElementById('statsContainer');
+    const headerRow = document.getElementById('headerRow');
+    
+    if (view === 'midweek') {
+        midweekBtn.classList.add('active');
+        sundayBtn.classList.remove('active');
+        dashboardTitle.innerHTML = 'Midweek Report Dashboard - Individual Basonta Reports';
+        
+        statsContainer.innerHTML = '<div class="stat-card"><h4>Total Attendance</h4><div class="value">-</div></div><div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">-</div></div><div class="stat-card"><h4>Total New Converts</h4><div class="value">-</div></div><div class="stat-card"><h4>Total Basontas</h4><div class="value">-</div></div>';
+        
+        headerRow.innerHTML = '<th>Name</th><th>Leader</th><th>Governorship</th><th>Attendance</th><th>New Converts</th><th>First Timers</th><th>Offering</th><th>Submitted</th>';
+    } else {
+        midweekBtn.classList.remove('active');
+        sundayBtn.classList.add('active');
+        dashboardTitle.innerHTML = 'Sunday Report Dashboard - Overall Church Attendance';
+        
+        statsContainer.innerHTML = '<div class="stat-card"><h4>Total Church Attendance</h4><div class="value">-</div></div><div class="stat-card"><h4>Deep Sea Fishing</h4><div class="value">-</div></div><div class="stat-card"><h4>Total Reports</h4><div class="value">-</div></div>';
+        
+        headerRow.innerHTML = '<th>Basonta Name</th><th>Sonta Leader</th><th>Meeting Attendance</th><th>Stage Attendance</th><th>Church Attendance</th><th>Deep Sea Fishing</th><th>Submitted</th>';
+    }
+    
+    setTimeout(() => {
+        updateBasontaFilter();
+        if (currentView === 'history') {
+            updateHistoryData();
+        } else {
+            applyFilters();
+        }
+    }, 100);
+}
+
 function hasLeaderSubmittedToday(leaderName, basontaName, submissionType) {
     const today = new Date().toDateString();
-    const dataToCheck = submissionType === 'midweek' ? globalMidweekData : globalSundayData;
-    
-    for (let i = 0; i < dataToCheck.length; i++) {
-        const item = dataToCheck[i];
+    for (let i = 0; i < globalData.length; i++) {
+        const item = globalData[i];
         const itemDate = item.Timestamp ? new Date(item.Timestamp).toDateString() : '';
         let itemLeader = '';
         let itemBasonta = '';
@@ -586,84 +648,74 @@ function hasLeaderSubmittedToday(leaderName, basontaName, submissionType) {
 }
 
 async function loadData() {
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">Loading data...<\/td><\/tr>';
-    
     try {
-        const midweekUrl = API_URL + '?action=read&type=basonta&sheet=Midweek';
-        const sundayUrl = API_URL + '?action=read&type=basonta&sheet=Sunday';
+        const url = API_URL + '?action=read&type=basonta&sheet=Sheet1';
+        const response = await fetch(url);
+        const result = await response.json();
         
-        const midweekRes = await fetch(midweekUrl);
-        const sundayRes = await fetch(sundayUrl);
-        
-        const midweekResult = await midweekRes.json();
-        const sundayResult = await sundayRes.json();
-        
-        if (midweekResult.success && midweekResult.data) {
-            globalMidweekData = midweekResult.data;
+        if (result.success && result.data) {
+            globalData = result.data;
+            console.log('Loaded', globalData.length, 'records');
         } else {
-            globalMidweekData = [];
+            globalData = [];
         }
-        
-        if (sundayResult.success && sundayResult.data) {
-            globalSundayData = sundayResult.data;
-        } else {
-            globalSundayData = [];
-        }
-        
-        console.log('Loaded midweek:', globalMidweekData.length, 'sunday:', globalSundayData.length);
-        
-        const weekStart = getCurrentWeekStart();
-        currentWeekMidweekData = [];
-        currentWeekSundayData = [];
-        historyMidweekData = [];
-        historySundayData = [];
-        
-        for (let i = 0; i < globalMidweekData.length; i++) {
-            const item = globalMidweekData[i];
-            const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
-            if (itemDate && itemDate >= weekStart) {
-                currentWeekMidweekData.push(item);
-            } else {
-                historyMidweekData.push(item);
-            }
-        }
-        
-        for (let i = 0; i < globalSundayData.length; i++) {
-            const item = globalSundayData[i];
-            const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
-            if (itemDate && itemDate >= weekStart) {
-                currentWeekSundayData.push(item);
-            } else {
-                historySundayData.push(item);
-            }
-        }
-        
-        updateBasontaFilter();
-        populateMonthSelector();
     } catch (error) {
         console.error("Error loading data:", error);
-        globalMidweekData = [];
-        globalSundayData = [];
-        currentWeekMidweekData = [];
-        currentWeekSundayData = [];
-        historyMidweekData = [];
-        historySundayData = [];
+        globalData = [];
     }
     
-    applyFilters();
+    processLoadedData();
+}
+
+function processLoadedData() {
+    const weekStart = getCurrentWeekStart();
+    currentWeekData = [];
+    historyData = [];
+    
+    for (let i = 0; i < globalData.length; i++) {
+        const item = globalData[i];
+        const itemDate = item.Timestamp ? new Date(item.Timestamp) : null;
+        if (itemDate && itemDate >= weekStart) {
+            currentWeekData.push(item);
+        } else {
+            historyData.push(item);
+        }
+    }
+    
+    console.log('Current week records:', currentWeekData.length);
+    console.log('History records:', historyData.length);
+    
+    updateBasontaFilter();
+    populateMonthSelector();
+    
+    if (currentView === 'history') {
+        updateHistoryData();
+    } else {
+        applyFilters();
+    }
 }
 
 function updateBasontaFilter() {
     const basontaSelect = document.getElementById('basontaSelectFilter');
     const basontaNames = new Set();
     
-    const dataToUse = currentView === 'current' ? [...currentWeekMidweekData, ...currentWeekSundayData] : [...historyMidweekData, ...historySundayData];
+    let dataSource = currentView === 'current' ? currentWeekData : historyData;
     
-    for (let i = 0; i < dataToUse.length; i++) {
-        const name = dataToUse[i]['Basonta Name'] || '';
-        if (name) {
-            basontaNames.add(name);
+    for (let i = 0; i < dataSource.length; i++) {
+        const item = dataSource[i];
+        
+        let submissionType = 'midweek';
+        if (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] || item['Stage Attendance'] || item['Church Attendance']) {
+            submissionType = 'sunday';
+        }
+        
+        if ((currentDashboardView === 'midweek' && submissionType === 'midweek') ||
+            (currentDashboardView === 'sunday' && submissionType === 'sunday')) {
+            
+            let name = item['Basonta Name'] || '';
+            if (name && name.trim() !== '' && name !== 'null' && name !== 'undefined') {
+                basontaNames.add(name);
+            }
         }
     }
     
@@ -679,10 +731,8 @@ function populateMonthSelector() {
     const monthSelect = document.getElementById('monthSelect');
     const months = new Set();
     
-    const allHistory = [...historyMidweekData, ...historySundayData];
-    
-    for (let i = 0; i < allHistory.length; i++) {
-        const item = allHistory[i];
+    for (let i = 0; i < historyData.length; i++) {
+        const item = historyData[i];
         const date = item.Timestamp ? new Date(item.Timestamp) : null;
         if (date) {
             const year = date.getFullYear();
@@ -694,7 +744,7 @@ function populateMonthSelector() {
     }
     
     let options = '<option value="">Select Month</option>';
-    const sortedMonths = Array.from(months).map(function(m) { return JSON.parse(m); }).sort(function(a, b) {
+    const sortedMonths = Array.from(months).map(m => JSON.parse(m)).sort((a, b) => {
         if (a.year !== b.year) return b.year - a.year;
         return b.month - a.month;
     });
@@ -719,7 +769,6 @@ function updateWeekSelector() {
     const parts = selectedMonthValue.split('-');
     const year = parseInt(parts[0]);
     const month = parseInt(parts[1]);
-    
     const weeks = getWeeksInMonth(year, month);
     
     let options = '<option value="">All Weeks</option>';
@@ -729,74 +778,77 @@ function updateWeekSelector() {
     weekSelect.innerHTML = options;
 }
 
-function filterHistoryByMonthWeek(data) {
-    if (!selectedMonth) return data;
+function updateHistoryData() {
+    let historyFiltered = [...historyData];
     
-    const parts = selectedMonth.split('-');
-    const year = parseInt(parts[0]);
-    const month = parseInt(parts[1]);
-    
-    let filtered = data.filter(function(item) {
-        const date = item.Timestamp ? new Date(item.Timestamp) : null;
-        return date && date.getFullYear() === year && date.getMonth() === month;
-    });
-    
-    if (selectedWeek && selectedWeek !== '') {
-        const weekNum = parseInt(selectedWeek);
-        filtered = filtered.filter(function(item) {
+    if (selectedMonth && selectedMonth !== '') {
+        const parts = selectedMonth.split('-');
+        const year = parseInt(parts[0]);
+        const month = parseInt(parts[1]);
+        
+        historyFiltered = historyData.filter(item => {
             const date = item.Timestamp ? new Date(item.Timestamp) : null;
-            return date && getWeekNumber(date) === weekNum;
+            return date && date.getFullYear() === year && date.getMonth() === month;
         });
-    }
-    
-    return filtered;
-}
-
-function applyFilters() {
-    const selectedBasonta = document.getElementById("basontaSelectFilter").value;
-    const typeFilter = document.getElementById("filterType").value;
-    
-    let midweekSource = [];
-    let sundaySource = [];
-    
-    if (currentView === 'current') {
-        midweekSource = currentWeekMidweekData;
-        sundaySource = currentWeekSundayData;
-    } else {
-        let historyMidweekFiltered = historyMidweekData;
-        let historySundayFiltered = historySundayData;
         
-        if (selectedMonth) {
-            historyMidweekFiltered = filterHistoryByMonthWeek(historyMidweekData);
-            historySundayFiltered = filterHistoryByMonthWeek(historySundayData);
+        if (selectedWeek && selectedWeek !== '') {
+            const weekNum = parseInt(selectedWeek);
+            historyFiltered = historyFiltered.filter(item => {
+                const date = item.Timestamp ? new Date(item.Timestamp) : null;
+                return date && getWeekNumber(date) === weekNum;
+            });
         }
-        
-        midweekSource = historyMidweekFiltered;
-        sundaySource = historySundayFiltered;
     }
+    
+    const selectedBasonta = document.getElementById("basontaSelectFilter").value;
     
     filteredData = [];
-    
-    for (let i = 0; i < midweekSource.length; i++) {
-        const item = midweekSource[i];
-        const basontaName = item['Basonta Name'] || '';
-        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
-        const matchesType = (typeFilter === "") || (typeFilter === 'midweek');
+    for (let i = 0; i < historyFiltered.length; i++) {
+        const item = historyFiltered[i];
         
-        if (matchesBasonta && matchesType) {
-            item.submissionType = 'midweek';
+        let basontaName = item['Basonta Name'] || '';
+        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
+        
+        let submissionType = 'midweek';
+        if (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] || item['Stage Attendance'] || item['Church Attendance']) {
+            submissionType = 'sunday';
+        }
+        
+        const matchesView = (currentDashboardView === 'midweek' && submissionType === 'midweek') ||
+                            (currentDashboardView === 'sunday' && submissionType === 'sunday');
+        
+        if (matchesBasonta && matchesView) {
+            item.submissionType = submissionType;
             filteredData.push(item);
         }
     }
     
-    for (let i = 0; i < sundaySource.length; i++) {
-        const item = sundaySource[i];
-        const basontaName = item['Basonta Name'] || '';
-        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
-        const matchesType = (typeFilter === "") || (typeFilter === 'sunday');
+    renderTable();
+    updateStats();
+    updateChart();
+}
+
+function applyFilters() {
+    const selectedBasonta = document.getElementById("basontaSelectFilter").value;
+    let dataSource = currentView === 'current' ? currentWeekData : historyData;
+    
+    filteredData = [];
+    for (let i = 0; i < dataSource.length; i++) {
+        const item = dataSource[i];
         
-        if (matchesBasonta && matchesType) {
-            item.submissionType = 'sunday';
+        let basontaName = item['Basonta Name'] || '';
+        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
+        
+        let submissionType = 'midweek';
+        if (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] || item['Stage Attendance'] || item['Church Attendance']) {
+            submissionType = 'sunday';
+        }
+        
+        const matchesView = (currentDashboardView === 'midweek' && submissionType === 'midweek') ||
+                            (currentDashboardView === 'sunday' && submissionType === 'sunday');
+        
+        if (matchesBasonta && matchesView) {
+            item.submissionType = submissionType;
             filteredData.push(item);
         }
     }
@@ -810,50 +862,39 @@ function renderTable() {
     const tbody = document.getElementById("tableBody");
     
     if (filteredData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center">No data found<\/td><\/tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center">No data found<\/td><\/tr>';
         return;
     }
     
     let html = '';
-    for (let i = 0; i < filteredData.length; i++) {
-        const d = filteredData[i];
-        let attendance = '';
-        let newConverts = '';
-        let firstTimers = '';
-        let offering = '';
-        
-        if (d.submissionType === 'midweek') {
-            attendance = d['Total Attendance'] || 0;
-            newConverts = d['New Converts'] || 0;
-            firstTimers = d['First Timers'] || 0;
-            offering = d.Offering || 0;
-        } else {
-            const meeting = d['Meeting Attendance'] || 0;
-            const stage = d['Stage Attendance'] || 0;
-            const church = d['Church Attendance'] || 0;
-            attendance = 'M:' + meeting + ' S:' + stage + ' C:' + church;
-            newConverts = d['Deep Sea Fishing'] || 0;
-            firstTimers = '-';
-            offering = '-';
+    
+    if (currentDashboardView === 'midweek') {
+        for (let i = 0; i < filteredData.length; i++) {
+            const d = filteredData[i];
+            html += '<tr>';
+            html += '<td>' + escapeHtml(d['Basonta Name'] || '') + '</td>';
+            html += '<td>' + escapeHtml(d['Leader'] || '') + '</td>';
+            html += '<td>' + escapeHtml(d.Governorship || '') + '</td>';
+            html += '<td>' + (d['Total Attendance'] || 0) + '</td>';
+            html += '<td>' + (d['New Converts'] || 0) + '</td>';
+            html += '<td>' + (d['First Timers'] || 0) + '</td>';
+            html += '<td>' + (d.Offering || 0) + '</td>';
+            html += '<td>' + (d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '') + '</td>';
+            html += '<\/tr>';
         }
-        
-        const typeText = (d.submissionType === 'midweek') ? 'Midweek' : 'Sunday';
-        const nameText = escapeHtml(d['Basonta Name'] || '');
-        const leaderText = escapeHtml(d['Leader'] || d['Sonta Leader'] || '');
-        const governorshipTeam = escapeHtml(d['Governorship'] || d['Team'] || '');
-        const dateText = d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '';
-        
-        html += '<tr>';
-        html += '<td>' + nameText + '<\/td>';
-        html += '<td>' + leaderText + '<\/td>';
-        html += '<td>' + governorshipTeam + '<\/td>';
-        html += '<td>' + typeText + '<\/td>';
-        html += '<td>' + attendance + '<\/td>';
-        html += '<td>' + newConverts + '<\/td>';
-        html += '<td>' + firstTimers + '<\/td>';
-        html += '<td>' + offering + '<\/td>';
-        html += '<td>' + dateText + '<\/td>';
-        html += '<\/tr>';
+    } else {
+        for (let i = 0; i < filteredData.length; i++) {
+            const d = filteredData[i];
+            html += '<tr>';
+            html += '<td>' + escapeHtml(d['Basonta Name'] || '') + '</td>';
+            html += '<td>' + escapeHtml(d['Sonta Leader'] || '') + '</td>';
+            html += '<td>' + (d['Meeting Attendance'] || 0) + '</td>';
+            html += '<td>' + (d['Stage Attendance'] || 0) + '</td>';
+            html += '<td>' + (d['Church Attendance'] || 0) + '</td>';
+            html += '<td>' + (d['Deep Sea Fishing'] || 0) + '</td>';
+            html += '<td>' + (d.Timestamp ? new Date(d.Timestamp).toLocaleDateString() : '') + '</td>';
+            html += '<\/tr>';
+        }
     }
     
     tbody.innerHTML = html;
@@ -863,47 +904,86 @@ function updateStats() {
     let totalAttendance = 0;
     let totalOffering = 0;
     let totalNewConverts = 0;
-    let totalBasontasConducted = filteredData.length;
+    let totalReports = filteredData.length;
     
-    for (let i = 0; i < filteredData.length; i++) {
-        const item = filteredData[i];
-        
-        if (item.submissionType === 'midweek') {
+    if (currentDashboardView === 'midweek') {
+        for (let i = 0; i < filteredData.length; i++) {
+            const item = filteredData[i];
             totalAttendance += parseFloat(item['Total Attendance']) || 0;
             totalOffering += parseFloat(item.Offering) || 0;
             totalNewConverts += parseFloat(item['New Converts']) || 0;
-        } else {
-            totalAttendance += (parseFloat(item['Meeting Attendance']) || 0) + (parseFloat(item['Stage Attendance']) || 0) + (parseFloat(item['Church Attendance']) || 0);
+        }
+        document.getElementById('statsContainer').innerHTML = '<div class="stat-card"><h4>Total Attendance</h4><div class="value">' + totalAttendance + '</div></div><div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div><div class="stat-card"><h4>Total New Converts</h4><div class="value">' + totalNewConverts + '</div></div><div class="stat-card"><h4>Total Basontas</h4><div class="value">' + totalReports + '</div></div>';
+    } else {
+        for (let i = 0; i < filteredData.length; i++) {
+            const item = filteredData[i];
+            totalAttendance += parseFloat(item['Church Attendance']) || 0;
             totalNewConverts += parseFloat(item['Deep Sea Fishing']) || 0;
         }
+        document.getElementById('statsContainer').innerHTML = '<div class="stat-card"><h4>Total Church Attendance</h4><div class="value">' + totalAttendance + '</div></div><div class="stat-card"><h4>Deep Sea Fishing</h4><div class="value">' + totalNewConverts + '</div></div><div class="stat-card"><h4>Total Reports</h4><div class="value">' + totalReports + '</div></div>';
     }
-    
-    document.getElementById('statsContainer').innerHTML = '<div class="stat-card"><h4>Total Attendance</h4><div class="value">' + totalAttendance + '</div></div><div class="stat-card"><h4>Total Offerings (KES)</h4><div class="value">KSh ' + totalOffering.toLocaleString() + '</div></div><div class="stat-card"><h4>Total New Converts</h4><div class="value">' + totalNewConverts + '</div></div><div class="stat-card"><h4>Total Basontas Conducted</h4><div class="value">' + totalBasontasConducted + '</div></div>';
 }
 
 function getAllWeeksInRange(data) {
     const weeks = new Set();
     for (let i = 0; i < data.length; i++) {
-        const item = data[i];
-        const date = item.Timestamp ? new Date(item.Timestamp) : null;
+        const date = data[i].Timestamp ? new Date(data[i].Timestamp) : null;
         if (date) {
-            const weekLabel = getWeekLabel(date);
-            weeks.add(weekLabel);
+            weeks.add(getWeekLabel(date));
         }
     }
     return Array.from(weeks).sort();
 }
 
 function getDataForChart() {
+    let dataSource = [];
     if (currentView === 'current') {
-        return [...currentWeekMidweekData, ...currentWeekSundayData];
+        dataSource = currentWeekData;
     } else {
-        let historyCombined = [...historyMidweekData, ...historySundayData];
-        if (selectedMonth) {
-            historyCombined = filterHistoryByMonthWeek(historyCombined);
+        let historyFiltered = [...historyData];
+        if (selectedMonth && selectedMonth !== '') {
+            const parts = selectedMonth.split('-');
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            
+            historyFiltered = historyData.filter(item => {
+                const date = item.Timestamp ? new Date(item.Timestamp) : null;
+                return date && date.getFullYear() === year && date.getMonth() === month;
+            });
+            
+            if (selectedWeek && selectedWeek !== '') {
+                const weekNum = parseInt(selectedWeek);
+                historyFiltered = historyFiltered.filter(item => {
+                    const date = item.Timestamp ? new Date(item.Timestamp) : null;
+                    return date && getWeekNumber(date) === weekNum;
+                });
+            }
         }
-        return historyCombined;
+        dataSource = historyFiltered;
     }
+    
+    const selectedBasonta = document.getElementById("basontaSelectFilter").value;
+    const filtered = [];
+    
+    for (let i = 0; i < dataSource.length; i++) {
+        const item = dataSource[i];
+        
+        let basontaName = item['Basonta Name'] || '';
+        const matchesBasonta = (selectedBasonta === "") || (basontaName === selectedBasonta);
+        
+        let submissionType = 'midweek';
+        if (item['Submission Type'] === 'sunday' || item['Meeting Attendance'] || item['Stage Attendance'] || item['Church Attendance']) {
+            submissionType = 'sunday';
+        }
+        
+        const matchesView = (currentDashboardView === 'midweek' && submissionType === 'midweek') ||
+                            (currentDashboardView === 'sunday' && submissionType === 'sunday');
+        
+        if (matchesBasonta && matchesView) {
+            filtered.push(item);
+        }
+    }
+    return filtered;
 }
 
 function updateChart() {
@@ -931,13 +1011,12 @@ function updateChart() {
         
         if (weekMap.has(weekLabel)) {
             const curr = weekMap.get(weekLabel);
-            
-            if (item.submissionType === 'midweek') {
+            if (currentDashboardView === 'midweek') {
                 curr.attendance += parseFloat(item['Total Attendance']) || 0;
                 curr.offering += parseFloat(item.Offering) || 0;
                 curr.newConverts += parseFloat(item['New Converts']) || 0;
             } else {
-                curr.attendance += (parseFloat(item['Meeting Attendance']) || 0) + (parseFloat(item['Stage Attendance']) || 0) + (parseFloat(item['Church Attendance']) || 0);
+                curr.attendance += parseFloat(item['Church Attendance']) || 0;
                 curr.newConverts += parseFloat(item['Deep Sea Fishing']) || 0;
             }
         }
@@ -955,31 +1034,44 @@ function updateChart() {
         newConvertsData.push(weekMap.get(w).newConverts);
     }
     
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: sortedWeeks,
-            datasets: [
-                { label: 'Total Attendance', data: attendanceData, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.2 },
-                { label: 'Offering (KES)', data: offeringData, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.2, yAxisID: 'y1' },
-                { label: 'New Converts', data: newConvertsData, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.2 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { title: { display: true, text: 'Attendance / Converts', color: '#fff' } },
-                y1: { position: 'right', title: { display: true, text: 'Offering (KES)', color: '#f59e0b' }, grid: { drawOnChartArea: false } }
+    if (currentDashboardView === 'midweek') {
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedWeeks,
+                datasets: [
+                    { label: 'Total Attendance', data: attendanceData, borderColor: '#3b82f6', tension: 0.2, fill: false },
+                    { label: 'Offering (KES)', data: offeringData, borderColor: '#f59e0b', tension: 0.2, fill: false, yAxisID: 'y1' },
+                    { label: 'New Converts', data: newConvertsData, borderColor: '#10b981', tension: 0.2, fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { title: { display: true, text: 'Attendance / Converts', color: '#fff' } },
+                    y1: { position: 'right', title: { display: true, text: 'Offering (KES)', color: '#f59e0b' }, grid: { drawOnChartArea: false } }
+                }
             }
-        }
-    });
+        });
+    } else {
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedWeeks,
+                datasets: [
+                    { label: 'Church Attendance', data: attendanceData, borderColor: '#3b82f6', tension: 0.2, fill: false },
+                    { label: 'Deep Sea Fishing', data: newConvertsData, borderColor: '#10b981', tension: 0.2, fill: false }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
 }
 
 function showSummaryModal(summaryText) {
     const modal = document.getElementById('summaryModal');
-    const summaryDiv = document.getElementById('summaryText');
-    summaryDiv.innerText = summaryText;
+    document.getElementById('summaryText').innerText = summaryText;
     modal.style.display = 'flex';
 }
 
@@ -988,30 +1080,17 @@ function setupModalButtons() {
     const closeBtn = document.getElementById('closeModalBtn');
     const modal = document.getElementById('summaryModal');
     
-    copyBtn.onclick = function() {
-        const summaryText = document.getElementById('summaryText').innerText;
-        navigator.clipboard.writeText(summaryText).then(function() {
-            copyBtn.innerText = 'Copied!';
-            setTimeout(function() {
-                copyBtn.innerText = 'Copy to Clipboard';
-            }, 2000);
-        });
+    copyBtn.onclick = () => {
+        navigator.clipboard.writeText(document.getElementById('summaryText').innerText);
+        copyBtn.innerText = 'Copied!';
+        setTimeout(() => copyBtn.innerText = 'Copy to Clipboard', 2000);
     };
-    
-    closeBtn.onclick = function() {
-        modal.style.display = 'none';
-    };
-    
-    window.onclick = function(event) {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    };
+    closeBtn.onclick = () => modal.style.display = 'none';
+    window.onclick = (event) => { if (event.target === modal) modal.style.display = 'none'; };
 }
 
 function switchView(view) {
     currentView = view;
-    
     const currentBtn = document.getElementById('viewCurrentBtn');
     const historyBtn = document.getElementById('viewHistoryBtn');
     const historyFilters = document.getElementById('historyFilters');
@@ -1024,30 +1103,28 @@ function switchView(view) {
         selectedWeek = '';
         document.getElementById('monthSelect').value = '';
         document.getElementById('weekSelect').innerHTML = '<option value="">All Weeks</option>';
+        updateBasontaFilter();
+        applyFilters();
     } else {
         currentBtn.classList.remove('active');
         historyBtn.classList.add('active');
         historyFilters.style.display = 'flex';
         populateMonthSelector();
+        updateHistoryData();
     }
-    
-    updateBasontaFilter();
-    applyFilters();
 }
 
 function onMonthChange() {
-    const monthSelect = document.getElementById('monthSelect');
-    selectedMonth = monthSelect.value;
+    selectedMonth = document.getElementById('monthSelect').value;
     updateWeekSelector();
     selectedWeek = '';
     document.getElementById('weekSelect').value = '';
-    applyFilters();
+    updateHistoryData();
 }
 
 function onWeekChange() {
-    const weekSelect = document.getElementById('weekSelect');
-    selectedWeek = weekSelect.value;
-    applyFilters();
+    selectedWeek = document.getElementById('weekSelect').value;
+    updateHistoryData();
 }
 
 function switchFormType(type) {
@@ -1058,18 +1135,10 @@ function switchFormType(type) {
 async function uploadToImgBB(file) {
     const formData = new FormData();
     formData.append("image", file);
-    
-    const response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
-        method: "POST",
-        body: formData
-    });
-    
+    const response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, { method: "POST", body: formData });
     const result = await response.json();
-    if (result.success) {
-        return result.data.url;
-    } else {
-        throw new Error("Image upload failed");
-    }
+    if (result.success) return result.data.url;
+    throw new Error("Image upload failed");
 }
 
 function renderFormByType() {
@@ -1091,46 +1160,53 @@ function renderFormByType() {
     }
     
     if (currentFormType === "midweek") {
+        // Add "Other" option to leader dropdown
         let leaderOptions = '';
         for (let i = 0; i < LEADERS_LIST.length; i++) {
             leaderOptions += '<option value="' + LEADERS_LIST[i] + '">' + LEADERS_LIST[i] + '</option>';
         }
         
-        container.innerHTML = submissionTypeHtml + '<div class="submission-type"><div class="type-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-10pm)</div><div class="type-btn" onclick="switchFormType(\'sunday\')">Sunday Report (Special Teams)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Basonta Name</label><input type="text" id="basontaName" placeholder="Basonta Name" required><label>Basonta Fellowship Leader</label><select id="leaderName" required><option value="">Select Leader</option>' + leaderOptions + '</select><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
+        container.innerHTML = submissionTypeHtml + '<div class="submission-type"><div class="type-btn active" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-10pm)</div><div class="type-btn" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Governorship</label><select id="governorshipSelect" required><option value="">Select Governorship</option><option>Juja Governorship</option><option>KU Governorship</option><option>Kiriri Governorship</option></select><label>Basonta Name</label><input type="text" id="basontaName" placeholder="Basonta Name" required><label>Basonta Fellowship Leader</label><select id="leaderName" required><option value="">Select Leader</option>' + leaderOptions + '<option value="other">Other (Add New Leader)</option></select><input type="text" id="newLeaderName" placeholder="Enter new leader name" style="display:none;"><label>Total Attendance</label><input type="number" id="totalAttendance" value="0"><label>New Converts</label><input type="number" id="newConverts" value="0"><label>First Timers</label><input type="number" id="firstTimers" value="0"><label>Offering (KES)</label><input type="number" id="offering" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Midweek Report</button>';
+        
+        // Add event listener for "Other" option
+        setTimeout(() => {
+            const leaderSelect = document.getElementById('leaderName');
+            const newLeaderInput = document.getElementById('newLeaderName');
+            if (leaderSelect) {
+                leaderSelect.onchange = () => {
+                    newLeaderInput.style.display = leaderSelect.value === 'other' ? 'block' : 'none';
+                };
+            }
+        }, 100);
     } else {
-        let basontaOptions = '';
-        for (let i = 0; i < BASONTA_NAMES.length; i++) {
-            basontaOptions += '<option value="' + BASONTA_NAMES[i] + '">' + BASONTA_NAMES[i] + '</option>';
-        }
-        
         let leaderOptions = '';
         for (let i = 0; i < LEADERS_LIST.length; i++) {
             leaderOptions += '<option value="' + LEADERS_LIST[i] + '">' + LEADERS_LIST[i] + '</option>';
         }
+        container.innerHTML = submissionTypeHtml + '<div class="submission-type"><div class="type-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-10pm)</div><div class="type-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (2-6pm)</div></div><label>Basonta Name</label><select id="basontaName" required><option value="">Select Basonta</option>' + BASONTA_NAMES.map(b => '<option value="' + b + '">' + b + '</option>').join('') + '</select><label>Sonta Leader Name</label><select id="sontaLeader" required><option value="">Select Leader</option>' + leaderOptions + '<option value="other">Other (Add New Leader)</option></select><input type="text" id="newLeaderName" placeholder="Enter new leader name" style="display:none;"><label>Meeting Attendance</label><input type="number" id="meetingAttendance" value="0"><label>Stage Attendance</label><input type="number" id="stageAttendance" value="0"><label>Church Attendance</label><input type="number" id="churchAttendance" value="0"><label>Deep Sea Fishing</label><input type="number" id="deepSeaFishing" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Sunday Report</button>';
         
-        container.innerHTML = submissionTypeHtml + '<div class="submission-type"><div class="type-btn" onclick="switchFormType(\'midweek\')">Midweek Report (Wed 6-10pm)</div><div class="type-btn active" onclick="switchFormType(\'sunday\')">Sunday Report (Special Teams)</div></div><label>Basonta Name</label><select id="basontaName" required><option value="">Select Basonta</option>' + basontaOptions + '</select><label>Sonta Leader Name</label><select id="sontaLeader" required><option value="">Select Leader</option>' + leaderOptions + '</select><label>Meeting Attendance</label><input type="number" id="meetingAttendance" value="0"><label>Stage Attendance</label><input type="number" id="stageAttendance" value="0"><label>Church Attendance</label><input type="number" id="churchAttendance" value="0"><label>Deep Sea Fishing (New Converts)</label><input type="number" id="deepSeaFishing" value="0"><label>Photo/Selfie</label><input type="file" id="imageUpload" accept="image/*"><div id="imagePreview"></div><button id="submitBtn">Submit Sunday Report</button>';
+        const leaderSelect = document.getElementById("sontaLeader");
+        const newLeaderInput = document.getElementById("newLeaderName");
+        if (leaderSelect) {
+            leaderSelect.onchange = () => { newLeaderInput.style.display = leaderSelect.value === "other" ? "block" : "none"; };
+        }
     }
     
     const fileInput = document.getElementById("imageUpload");
     if (fileInput) {
-        fileInput.onchange = function(e) {
+        fileInput.onchange = (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(ev) {
-                    document.getElementById("imagePreview").innerHTML = '<img src="' + ev.target.result + '" class="preview-img">';
-                };
+                reader.onload = (ev) => { document.getElementById("imagePreview").innerHTML = '<img src="' + ev.target.result + '" class="preview-img">'; };
                 reader.readAsDataURL(file);
             }
         };
     }
-    
     document.getElementById("submitBtn").onclick = submitData;
 }
 
-function renderForm() {
-    renderFormByType();
-}
+function renderForm() { renderFormByType(); }
 
 async function submitData() {
     if (isSubmitting) {
@@ -1139,8 +1215,6 @@ async function submitData() {
     }
     
     const status = document.getElementById("status");
-    const allowedType = getCurrentAllowedType();
-    
     const fileInput = document.getElementById("imageUpload");
     const file = fileInput ? fileInput.files[0] : null;
     
@@ -1158,15 +1232,27 @@ async function submitData() {
     if (currentFormType === "midweek") {
         const governorship = document.getElementById("governorshipSelect").value;
         const basontaName = document.getElementById("basontaName").value.trim();
-        const leaderName = document.getElementById("leaderName").value;
+        let leaderName = document.getElementById("leaderName").value;
+        const newLeaderInput = document.getElementById("newLeaderName");
+        
+        // Handle "Other" option for leader
+        if (leaderName === "other") {
+            leaderName = newLeaderInput.value.trim();
+            if (!leaderName) {
+                status.innerHTML = '<span class="error-msg">Please enter a new leader name</span>';
+                return;
+            }
+        }
+        
         const totalAttendance = parseInt(document.getElementById("totalAttendance").value) || 0;
         const newConverts = parseInt(document.getElementById("newConverts").value) || 0;
         const firstTimers = parseInt(document.getElementById("firstTimers").value) || 0;
         const offering = parseInt(document.getElementById("offering").value) || 0;
         
-        if (!governorship) { status.innerHTML = '<span class="error-msg">Governorship required</span>'; return; }
-        if (!basontaName) { status.innerHTML = '<span class="error-msg">Basonta name required</span>'; return; }
-        if (!leaderName) { status.innerHTML = '<span class="error-msg">Leader name required</span>'; return; }
+        if (!governorship || !basontaName || !leaderName) {
+            status.innerHTML = '<span class="error-msg">Please fill all required fields</span>';
+            return;
+        }
         
         if (hasLeaderSubmittedToday(leaderName, basontaName, 'midweek')) {
             status.innerHTML = '<span class="error-msg">You have already submitted a report for this Basonta today. Duplicate submissions are not allowed.</span>';
@@ -1178,7 +1264,7 @@ async function submitData() {
         const params = new URLSearchParams();
         params.append('action', 'write');
         params.append('type', 'basonta');
-        params.append('sheet', 'Midweek');
+        params.append('sheet', 'Sheet1');
         params.append('Basonta Name', basontaName);
         params.append('Leader', leaderName);
         params.append('Governorship', governorship);
@@ -1189,60 +1275,50 @@ async function submitData() {
         params.append('Offering', offering);
         params.append('Selfie URL', imageUrl);
         
-        const fullUrl = API_URL + '?' + params.toString();
+        const response = await fetch(API_URL + '?' + params.toString());
+        const text = await response.text();
         
-        try {
-            const response = await fetch(fullUrl);
-            const text = await response.text();
-            
-            if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
-                const currentDate = formatDate();
-                const summaryText = `Name of Basonta: ${basontaName}
-Name of Basonta Fellowship Leader: ${leaderName}
-Governorship: ${governorship}
-Date: ${currentDate}
-Total Attendance: ${totalAttendance}
-New Converts: ${newConverts}
-First Timers: ${firstTimers}
-Offering: KES ${offering}`;
-                
-                showSummaryModal(summaryText);
-                
-                status.innerHTML = '<span class="success-msg">Midweek report submitted successfully!</span>';
-                document.getElementById("governorshipSelect").value = "";
-                document.getElementById("basontaName").value = "";
-                document.getElementById("leaderName").value = "";
-                document.getElementById("totalAttendance").value = "0";
-                document.getElementById("newConverts").value = "0";
-                document.getElementById("firstTimers").value = "0";
-                document.getElementById("offering").value = "0";
-                if (fileInput) fileInput.value = "";
-                document.getElementById("imagePreview").innerHTML = "";
-                
-                setTimeout(async function() {
-                    await loadData();
-                    status.innerHTML = '';
-                    isSubmitting = false;
-                }, 2000);
-            } else {
-                status.innerHTML = '<span class="error-msg">Submission failed</span>';
-                isSubmitting = false;
-            }
-        } catch (error) {
-            status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+        if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+            const summaryText = `Name of Basonta: ${basontaName}\nName of Basonta Fellowship Leader: ${leaderName}\nGovernorship: ${governorship}\nDate: ${formatDate()}\nTotal Attendance: ${totalAttendance}\nNew Converts: ${newConverts}\nFirst Timers: ${firstTimers}\nOffering: KES ${offering}`;
+            showSummaryModal(summaryText);
+            status.innerHTML = '<span class="success-msg">Midweek report submitted successfully!</span>';
+            document.getElementById("governorshipSelect").value = "";
+            document.getElementById("basontaName").value = "";
+            document.getElementById("leaderName").value = "";
+            document.getElementById("newLeaderName").value = "";
+            document.getElementById("totalAttendance").value = "0";
+            document.getElementById("newConverts").value = "0";
+            document.getElementById("firstTimers").value = "0";
+            document.getElementById("offering").value = "0";
+            if (fileInput) fileInput.value = "";
+            document.getElementById("imagePreview").innerHTML = "";
+            setTimeout(async () => { await loadData(); status.innerHTML = ''; isSubmitting = false; }, 2000);
+        } else {
+            status.innerHTML = '<span class="error-msg">Submission failed</span>';
             isSubmitting = false;
         }
-        
     } else {
         const basontaName = document.getElementById("basontaName").value;
-        const sontaLeader = document.getElementById("sontaLeader").value;
+        let sontaLeader = document.getElementById("sontaLeader").value;
+        const newLeaderInput = document.getElementById("newLeaderName");
+        
+        if (sontaLeader === "other") {
+            sontaLeader = newLeaderInput.value.trim();
+            if (!sontaLeader) {
+                status.innerHTML = '<span class="error-msg">Please enter a new leader name</span>';
+                return;
+            }
+        }
+        
         const meetingAttendance = parseInt(document.getElementById("meetingAttendance").value) || 0;
         const stageAttendance = parseInt(document.getElementById("stageAttendance").value) || 0;
         const churchAttendance = parseInt(document.getElementById("churchAttendance").value) || 0;
         const deepSeaFishing = parseInt(document.getElementById("deepSeaFishing").value) || 0;
         
-        if (!basontaName) { status.innerHTML = '<span class="error-msg">Basonta name required</span>'; return; }
-        if (!sontaLeader) { status.innerHTML = '<span class="error-msg">Sonta leader name required</span>'; return; }
+        if (!basontaName || !sontaLeader) {
+            status.innerHTML = '<span class="error-msg">Please fill all required fields</span>';
+            return;
+        }
         
         if (hasLeaderSubmittedToday(sontaLeader, basontaName, 'sunday')) {
             status.innerHTML = '<span class="error-msg">You have already submitted a report for this Basonta today. Duplicate submissions are not allowed.</span>';
@@ -1254,100 +1330,69 @@ Offering: KES ${offering}`;
         const params = new URLSearchParams();
         params.append('action', 'write');
         params.append('type', 'basonta');
-        params.append('sheet', 'Sunday');
+        params.append('sheet', 'Sheet1');
         params.append('Basonta Name', basontaName);
         params.append('Sonta Leader', sontaLeader);
-        params.append('Team', basontaName);
+        params.append('Submission Type', 'sunday');
         params.append('Meeting Attendance', meetingAttendance);
         params.append('Stage Attendance', stageAttendance);
         params.append('Church Attendance', churchAttendance);
         params.append('Deep Sea Fishing', deepSeaFishing);
         params.append('Selfie URL', imageUrl);
         
-        const fullUrl = API_URL + '?' + params.toString();
+        const response = await fetch(API_URL + '?' + params.toString());
+        const text = await response.text();
         
-        try {
-            const response = await fetch(fullUrl);
-            const text = await response.text();
-            
-            if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
-                const currentDate = formatDate();
-                const meetingAtt = String(meetingAttendance).padStart(2, '0');
-                const stageAtt = String(stageAttendance).padStart(2, '0');
-                const churchAtt = String(churchAttendance).padStart(2, '0');
-                const deepSea = String(deepSeaFishing).padStart(2, '0');
-                
-                const summaryText = `Name of Basonta: ${basontaName}
-Name of Sonta leader: ${sontaLeader}
-Date: ${currentDate}
-Meeting attendance: ${meetingAtt}
-Stage attendance: ${stageAtt}
-Attendance in church: ${churchAtt}
-Deep sea fishing: ${deepSea}`;
-                
-                showSummaryModal(summaryText);
-                
-                status.innerHTML = '<span class="success-msg">Sunday report submitted successfully!</span>';
-                document.getElementById("basontaName").value = "";
-                document.getElementById("sontaLeader").value = "";
-                document.getElementById("meetingAttendance").value = "0";
-                document.getElementById("stageAttendance").value = "0";
-                document.getElementById("churchAttendance").value = "0";
-                document.getElementById("deepSeaFishing").value = "0";
-                if (fileInput) fileInput.value = "";
-                document.getElementById("imagePreview").innerHTML = "";
-                
-                setTimeout(async function() {
-                    await loadData();
-                    status.innerHTML = '';
-                    isSubmitting = false;
-                }, 2000);
-            } else {
-                status.innerHTML = '<span class="error-msg">Submission failed</span>';
-                isSubmitting = false;
-            }
-        } catch (error) {
-            status.innerHTML = '<span class="error-msg">Error: ' + error.message + '</span>';
+        if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+            const summaryText = `Name of Basonta: ${basontaName}\nName of Sonta leader: ${sontaLeader}\nDate: ${formatDate()}\nMeeting attendance: ${String(meetingAttendance).padStart(2,'0')}\nStage attendance: ${String(stageAttendance).padStart(2,'0')}\nAttendance in church: ${String(churchAttendance).padStart(2,'0')}\nDeep sea fishing: ${String(deepSeaFishing).padStart(2,'0')}`;
+            showSummaryModal(summaryText);
+            status.innerHTML = '<span class="success-msg">Sunday report submitted successfully!</span>';
+            document.getElementById("basontaName").value = "";
+            document.getElementById("sontaLeader").value = "";
+            if (newLeaderInput) newLeaderInput.value = "";
+            document.getElementById("meetingAttendance").value = "0";
+            document.getElementById("stageAttendance").value = "0";
+            document.getElementById("churchAttendance").value = "0";
+            document.getElementById("deepSeaFishing").value = "0";
+            if (fileInput) fileInput.value = "";
+            document.getElementById("imagePreview").innerHTML = "";
+            setTimeout(async () => { await loadData(); status.innerHTML = ''; isSubmitting = false; }, 2000);
+        } else {
+            status.innerHTML = '<span class="error-msg">Submission failed</span>';
             isSubmitting = false;
         }
     }
 }
 
 function exportToExcel() {
-    if (filteredData.length === 0) {
-        alert('No data to export!');
-        return;
-    }
+    if (filteredData.length === 0) { alert('No data to export!'); return; }
     const ws = XLSX.utils.json_to_sheet(filteredData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Basonta_Data');
-    const dateStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, 'Basonta_Reports_' + dateStr + '.xlsx');
+    XLSX.writeFile(wb, 'Basonta_Reports_' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
-document.getElementById("basontaSelectFilter")?.addEventListener("change", function() { applyFilters(); });
-document.getElementById("filterType")?.addEventListener("change", function() { applyFilters(); });
-document.getElementById("resetFilters")?.addEventListener("click", function() {
+document.getElementById("basontaSelectFilter")?.addEventListener("change", () => {
+    if (currentView === 'history') updateHistoryData();
+    else applyFilters();
+});
+document.getElementById("resetFilters")?.addEventListener("click", () => {
     document.getElementById("basontaSelectFilter").value = "";
-    document.getElementById("filterType").value = "";
-    applyFilters();
+    if (currentView === 'history') updateHistoryData();
+    else applyFilters();
 });
 document.getElementById("exportBtn")?.addEventListener("click", exportToExcel);
-document.getElementById("viewCurrentBtn")?.addEventListener("click", function() { switchView('current'); });
-document.getElementById("viewHistoryBtn")?.addEventListener("click", function() { switchView('history'); });
-document.getElementById("monthSelect")?.addEventListener("change", function() { onMonthChange(); });
-document.getElementById("weekSelect")?.addEventListener("change", function() { onWeekChange(); });
+document.getElementById("viewCurrentBtn")?.addEventListener("click", () => switchView('current'));
+document.getElementById("viewHistoryBtn")?.addEventListener("click", () => switchView('history'));
+document.getElementById("monthSelect")?.addEventListener("change", onMonthChange);
+document.getElementById("weekSelect")?.addEventListener("change", onWeekChange);
 
 window.switchFormType = switchFormType;
+window.switchDashboardView = switchDashboardView;
 
 function escapeHtml(str) {
     if (!str) return "";
-    return str.replace(/[&<>]/g, function(m) {
-        if (m === '&') return '&amp;';
-        if (m === '<') return '&lt;';
-        if (m === '>') return '&gt;';
-        return m;
-    });
+    return str.replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
 }
 
 setupModalButtons();
