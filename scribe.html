@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0B1215">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FLC Assistant">
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="logo.jpeg">
-    <title>The Scribe - Reporting Assistant</title>
+    <title>The Scribe - AI Reporting Assistant</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -16,18 +18,20 @@
             background: #0B1215;
             color: #E0E0E0;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
 
-        /* Header */
         .header {
             background: rgba(11,18,21,0.95);
             backdrop-filter: blur(20px);
-            padding: 16px 24px;
+            padding: 16px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid rgba(0,128,128,0.3);
+            flex-shrink: 0;
         }
 
         .logo-area {
@@ -49,38 +53,24 @@
             color: #FFBF00;
         }
 
-        .ai-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #008080;
-        }
-
-        .ai-dot {
-            width: 8px;
-            height: 8px;
+        .status-badge {
             background: #008080;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 1; }
-        }
-
-        /* Chat Container */
         .chat-container {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* Message Bubbles */
         .message {
             display: flex;
             max-width: 85%;
@@ -91,34 +81,32 @@
         .message.user { align-self: flex-end; }
 
         .bubble {
-            padding: 12px 18px;
-            border-radius: 24px;
-            line-height: 1.45;
-            font-size: 15px;
+            padding: 10px 14px;
+            border-radius: 18px;
+            line-height: 1.4;
+            font-size: 14px;
+            word-wrap: break-word;
         }
 
         .ai .bubble {
-            background: rgba(20,30,35,0.9);
-            border: 1px solid rgba(0,128,128,0.3);
-            border-bottom-left-radius: 6px;
+            background: #1a3a3a;
+            border-left: 3px solid #FFBF00;
         }
 
         .user .bubble {
             background: #008080;
-            border-bottom-right-radius: 6px;
         }
 
-        /* Typing Indicator */
         .typing {
             display: flex;
             gap: 4px;
-            padding: 12px 18px;
+            padding: 10px 14px;
         }
 
         .typing span {
             width: 8px;
             height: 8px;
-            background: #008080;
+            background: #FFBF00;
             border-radius: 50%;
             animation: typingBounce 1.4s infinite;
         }
@@ -136,39 +124,43 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Smart Chips */
-        .chips {
-            display: flex;
-            flex-wrap: wrap;
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-top: 8px;
         }
 
-        .chip {
-            background: rgba(20,30,35,0.9);
+        .option-btn {
+            background: #1a3a3a;
             border: 1px solid rgba(0,128,128,0.4);
             border-radius: 30px;
-            padding: 10px 18px;
-            font-size: 14px;
+            padding: 12px;
+            text-align: center;
             cursor: pointer;
+            font-size: 14px;
             transition: all 0.2s;
         }
 
-        .chip:hover {
-            background: rgba(0,128,128,0.2);
+        .option-btn:hover {
+            background: #008080;
             border-color: #008080;
         }
 
-        /* Form Elements */
         .form-select, .form-input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 12px;
             margin-top: 10px;
-            border-radius: 16px;
+            border-radius: 12px;
             border: 1px solid rgba(0,128,128,0.4);
-            background: rgba(11,18,21,0.9);
+            background: #0f2e2e;
             color: #E0E0E0;
-            font-size: 15px;
+            font-size: 14px;
+        }
+
+        .form-select:focus, .form-input:focus {
+            outline: none;
+            border-color: #FFBF00;
         }
 
         .number-pad {
@@ -179,40 +171,140 @@
         }
 
         .num-btn {
-            background: rgba(20,30,35,0.9);
+            background: #1a3a3a;
             border: 1px solid rgba(0,128,128,0.3);
-            border-radius: 16px;
+            border-radius: 12px;
             padding: 14px;
-            font-size: 20px;
             text-align: center;
+            font-size: 18px;
             cursor: pointer;
         }
 
-        .num-btn:active { transform: scale(0.95); background: rgba(0,128,128,0.3); }
+        .num-btn:active {
+            background: #008080;
+            transform: scale(0.95);
+        }
 
-        /* Input Area */
+        .progress-container {
+            margin-top: 10px;
+        }
+
+        .progress-bar-bg {
+            background: #1e293b;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: #10b981;
+            transition: width 0.3s;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            font-size: 11px;
+            color: #10b981;
+            margin-top: 5px;
+        }
+
+        .preview-img {
+            max-width: 80px;
+            max-height: 80px;
+            margin-top: 10px;
+            border-radius: 8px;
+            border: 1px solid #FFBF00;
+        }
+
+        .action-btn {
+            background: #FFBF00;
+            color: #0B1215;
+            border: none;
+            border-radius: 30px;
+            padding: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .mandatory-note {
+            font-size: 11px;
+            color: #FFBF00;
+            margin-top: 5px;
+        }
+
+        .receipt-card {
+            background: rgba(20,30,35,0.95);
+            border: 1px solid #FFBF00;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 10px;
+        }
+
+        .receipt-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #FFBF00;
+            margin-bottom: 10px;
+        }
+
+        .receipt-line {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 12px;
+        }
+
+        .receipt-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .copy-btn {
+            flex: 1;
+            background: #FFBF00;
+            color: #0B1215;
+            border: none;
+            border-radius: 30px;
+            padding: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         .input-area {
-            padding: 16px 24px;
             background: rgba(11,18,21,0.95);
             border-top: 1px solid rgba(0,128,128,0.3);
+            padding: 12px 16px;
             display: flex;
-            gap: 12px;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .input-field {
             flex: 1;
-            padding: 14px 20px;
-            background: rgba(20,30,35,0.8);
+            padding: 12px 16px;
+            background: #1a3a3a;
             border: 1px solid rgba(0,128,128,0.4);
             border-radius: 30px;
             color: #E0E0E0;
             font-size: 15px;
         }
 
-        .input-field:focus { outline: none; border-color: #008080; }
+        .input-field:focus {
+            outline: none;
+            border-color: #FFBF00;
+        }
 
         .send-btn {
-            background: #008080;
+            background: #FFBF00;
             border: none;
             border-radius: 50%;
             width: 48px;
@@ -221,156 +313,153 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 20px;
+            font-size: 18px;
         }
 
-        .voice-btn {
-            background: rgba(255,191,0,0.15);
-            border: 1px solid #FFBF00;
-            border-radius: 50%;
-            width: 48px;
-            height: 48px;
-            cursor: pointer;
-            font-size: 20px;
+        .modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
 
-        /* Receipt Card */
-        .receipt {
-            background: rgba(20,30,35,0.95);
-            border: 1px solid #FFBF00;
+        .modal-content {
+            background: #0f2e2e;
+            padding: 30px;
             border-radius: 20px;
-            padding: 20px;
+            text-align: center;
+            width: 280px;
+            border: 1px solid #FFBF00;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 10px;
+            border: 1px solid #2a5a5a;
+            background: #1a3a3a;
+            color: white;
+        }
+
+        .modal-content button {
+            background: #FFBF00;
+            color: #0B1215;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            width: 100%;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 12px;
             margin-top: 10px;
         }
 
-        .receipt-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #FFBF00;
-            margin-bottom: 12px;
-        }
-
-        .receipt-line {
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .receipt-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .copy-btn, .submit-btn {
-            flex: 1;
-            padding: 10px;
-            border-radius: 12px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .copy-btn { background: #FFBF00; color: #0B1215; }
-        .submit-btn { background: #008080; color: white; }
-
-        .offline-banner {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #ef4444;
-            text-align: center;
-            padding: 8px;
-            font-size: 12px;
-            transform: translateY(100%);
-            transition: transform 0.3s;
-            z-index: 100;
-        }
-
-        .offline-banner.show { transform: translateY(0); }
-
         @media (max-width: 640px) {
             .message { max-width: 90%; }
-            .chips { flex-direction: column; }
+            .options-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div class="logo-area">
-        <img src="logo.jpeg" alt="FLC" class="logo-img" onerror="this.src='https://via.placeholder.com/40/0a2540/ffffff?text=FLC'">
-        <div class="title">The Scribe</div>
-    </div>
-    <div class="ai-status">
-        <div class="ai-dot"></div>
-        <span>AI Ready</span>
+<div id="passwordModal" class="modal">
+    <div class="modal-content">
+        <h3 style="color:#FFBF00;">Enter Password</h3>
+        <input type="password" id="passwordInput" placeholder="Password" onkeypress="if(event.keyCode===13) checkPassword()">
+        <button onclick="checkPassword()">Access Assistant</button>
+        <div id="pwdError" class="error-msg"></div>
     </div>
 </div>
 
-<div class="chat-container" id="chatContainer">
-    <div class="message ai">
-        <div class="bubble">
-            Good day, Leader.<br><br>
-            I am your reporting assistant. What would you like to submit today?
+<div id="mainApp" style="display: none; flex-direction: column; height: 100%;">
+    <div class="header">
+        <div class="logo-area">
+            <img src="logo.jpeg" alt="FLC" class="logo-img" onerror="this.src='https://via.placeholder.com/40/0a2540/ffffff?text=FLC'">
+            <div class="title">The Scribe</div>
+        </div>
+        <div class="status-badge">AI Ready</div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="message ai">
+            <div class="bubble">👋 Hello Leader. I'm your reporting assistant.<br><br>What would you like to submit today?</div>
+        </div>
+        <div class="options-grid" id="reportChips">
+            <div class="option-btn" onclick="startReport('bacenta')">Bacenta Friday Fellowship</div>
+            <div class="option-btn" onclick="startReport('bacenta-sunday')">Bacenta Sunday Service</div>
+            <div class="option-btn" onclick="startReport('basonta-midweek')">Basonta Midweek</div>
+            <div class="option-btn" onclick="startReport('basonta-sunday')">Basonta Sunday</div>
+            <div class="option-btn" onclick="startReport('governorship-midweek')">Governorship Midweek</div>
+            <div class="option-btn" onclick="startReport('governorship-sunday')">Governorship Sunday</div>
         </div>
     </div>
-    <div class="chips" id="reportChips">
-        <div class="chip" onclick="startReport('bacenta')">Bacenta Report</div>
-        <div class="chip" onclick="startReport('basonta-midweek')">Basonta Midweek Report</div>
-        <div class="chip" onclick="startReport('basonta-sunday')">Basonta Sunday Report</div>
-        <div class="chip" onclick="startReport('governorship-midweek')">Governorship Midweek Report</div>
-        <div class="chip" onclick="startReport('governorship-sunday')">Governorship Sunday Report</div>
+
+    <div class="input-area">
+        <input type="text" id="chatInput" class="input-field" placeholder="Type your response..." disabled>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
     </div>
 </div>
 
-<div class="input-area">
-    <button class="voice-btn" id="voiceBtn" onclick="startVoiceInput()">🎤</button>
-    <input type="text" id="chatInput" class="input-field" placeholder="Type your response..." disabled>
-    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
-</div>
-
-<div id="offlineBanner" class="offline-banner">You are offline. Your report will be saved and submitted when you reconnect.</div>
-
-<script src="flc-db.js"></script>
 <script>
-// Configuration
+// ================= CONFIGURATION =================
+const API_URL = 'https://script.google.com/macros/s/AKfycbzna2NUEmqrQ3oVO2SyjJ2Vawiz7PWcUZQXcRAQwJ1iFG8XbGepT9RFmRGGVJFXgJNWhQ/exec';
 const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
+const USER_PASSWORD = 'User123';
 
 let currentReportType = null;
 let currentStep = 0;
 let collectedData = {};
 let isAwaitingResponse = false;
-let recognition = null;
-let pendingQueue = [];
+let isSubmitting = false;
 
-// Report flows - matching your existing form structure
+// Complete leaders list
+const LEADERS_LIST = ['Evans Okumu', 'Paul Webi', 'Deborah Njorogex', 'Friend Mwaura', 'Stella Njambi', 'Charisma Angel', 'Perkins Katisa', 'Tanyasis', 'Joseph Misunga', 'Austin Peter', 'Beatrice Mueni', 'George Gute', 'Omaset Linda', 'Edwin Omondi', 'Abigail Mbogo'];
+
+// Report flows with mandatory photo flag
 const REPORT_FLOWS = {
     'bacenta': [
-        { field: 'leaderName', question: 'Who is the leader?', type: 'leader' },
+        { field: 'leaderName', question: 'Select the leader:', type: 'leader' },
         { field: 'governorship', question: 'Select the governorship:', type: 'select', options: ['Juja Governorship', 'KU Governorship', 'Kiriri Governorship'] },
         { field: 'fellowshipAttendance', question: 'What is the Fellowship Attendance?', type: 'number' },
+        { field: 'firstTimers', question: 'How many First Timers?', type: 'number' },
+        { field: 'newConverts', question: 'How many New Converts?', type: 'number' },
         { field: 'offering', question: 'What is the Offering amount in KES?', type: 'number' },
-        { field: 'photo', question: 'Upload a photo (optional)', type: 'file' }
+        { field: 'photo', question: 'Upload a photo (required for Friday Fellowship)', type: 'file', required: true }
+    ],
+    'bacenta-sunday': [
+        { field: 'leaderName', question: 'Select the leader:', type: 'leader' },
+        { field: 'governorship', question: 'Select the governorship:', type: 'select', options: ['Juja Governorship', 'KU Governorship', 'Kiriri Governorship'] },
+        { field: 'serviceAttendance', question: 'What is the Service Attendance (members in church)?', type: 'number' }
     ],
     'basonta-midweek': [
         { field: 'governorship', question: 'Select the governorship:', type: 'select', options: ['Juja Governorship', 'KU Governorship', 'Kiriri Governorship'] },
         { field: 'basontaName', question: 'What is the Basonta name?', type: 'text' },
-        { field: 'leaderName', question: 'Who is the Basonta Fellowship Leader?', type: 'leader' },
+        { field: 'leaderName', question: 'Select the Basonta Fellowship Leader:', type: 'leader' },
         { field: 'totalAttendance', question: 'What is the Total Attendance?', type: 'number' },
         { field: 'newConverts', question: 'How many New Converts?', type: 'number' },
         { field: 'firstTimers', question: 'How many First Timers?', type: 'number' },
         { field: 'offering', question: 'What is the Offering amount in KES?', type: 'number' },
-        { field: 'photo', question: 'Upload a photo (optional)', type: 'file' }
+        { field: 'photo', question: 'Upload a photo (required for Midweek report)', type: 'file', required: true }
     ],
     'basonta-sunday': [
         { field: 'basontaName', question: 'Select the Basonta name:', type: 'select', options: ['GLC CHOIR', 'DANCING STARS', 'AIRPORT STARS', 'USHERS', 'MEDIA', 'FLOLLYWOOD STARS'] },
-        { field: 'sontaLeader', question: 'Who is the Sonta Leader?', type: 'leader' },
+        { field: 'sontaLeader', question: 'Select the Sonta Leader:', type: 'leader' },
         { field: 'meetingAttendance', question: 'What is the Meeting Attendance?', type: 'number' },
         { field: 'stageAttendance', question: 'What is the Stage Attendance?', type: 'number' },
         { field: 'churchAttendance', question: 'What is the Church Attendance?', type: 'number' },
         { field: 'deepSeaFishing', question: 'What is the Deep Sea Fishing number?', type: 'number' },
-        { field: 'photo', question: 'Upload a photo (optional)', type: 'file' }
+        { field: 'photo', question: 'Upload a photo (required for Sunday report)', type: 'file', required: true }
     ],
     'governorship-midweek': [
         { field: 'governorship', question: 'Select the governorship:', type: 'select', options: ['Juja Governorship', 'KU Governorship', 'Kiriri Governorship'] },
@@ -381,7 +470,7 @@ const REPORT_FLOWS = {
         { field: 'newConverts', question: 'How many New Converts?', type: 'number' },
         { field: 'messagePreached', question: 'What message was preached?', type: 'text' },
         { field: 'offering', question: 'What is the Offering amount in KES?', type: 'number' },
-        { field: 'photo', question: 'Upload a crowd photo (optional)', type: 'file' }
+        { field: 'photo', question: 'Upload a crowd photo (required for Midweek)', type: 'file', required: true }
     ],
     'governorship-sunday': [
         { field: 'governorship', question: 'Select the governorship:', type: 'select', options: ['Juja Governorship', 'KU Governorship', 'Kiriri Governorship'] },
@@ -392,14 +481,89 @@ const REPORT_FLOWS = {
     ]
 };
 
-const LEADERS_LIST = ['Evans Okumu', 'Paul Webi', 'Deborah Njorogex', 'Friend Mwaura', 'Stella Njambi', 'Charisma Angel', 'Perkins Katisa', 'Tanyasis', 'Joseph Misunga', 'Austin Peter', 'Beatrice Mueni', 'George Gute', 'Omaset Linda', 'Edwin Omondi', 'Abigail Mbogo'];
+// ================= TIME RULES (EAT - UTC+3) =================
+// Get current time in East African Time (UTC+3)
+function getEATTime() {
+    const now = new Date();
+    // Convert to UTC+3 (EAT)
+    const eatTime = new Date(now.getTime() + (3 * 60 * 60 * 1000));
+    return eatTime;
+}
 
-// DOM Elements
-const chatContainer = document.getElementById('chatContainer');
-const chatInput = document.getElementById('chatInput');
-const sendBtn = document.getElementById('sendBtn');
+// Check if report submission is allowed based on day and hour (EAT)
+function isReportAllowed(reportType) {
+    const eatNow = getEATTime();
+    const day = eatNow.getUTCDay();     // 0 = Sunday, 1 = Monday, ... 5 = Friday, 6 = Saturday
+    const hour = eatNow.getUTCHours();   // 0-23
+    
+    switch(reportType) {
+        case 'bacenta': // Bacenta Friday Fellowship: Friday 6pm-10pm (18-22)
+            return (day === 5 && hour >= 18 && hour < 22);
+        case 'bacenta-sunday': // Bacenta Sunday Service: Sunday 2pm-6pm (14-18)
+            return (day === 0 && hour >= 14 && hour < 18);
+        case 'basonta-midweek': // Basonta Midweek: Wednesday 6pm-10pm (18-22)
+            return (day === 3 && hour >= 18 && hour < 22);
+        case 'basonta-sunday': // Basonta Sunday: Sunday 2pm-6pm (14-18)
+            return (day === 0 && hour >= 14 && hour < 18);
+        case 'governorship-midweek': // Governorship Midweek: Thursday 8pm-10pm (20-22)
+            return (day === 4 && hour >= 20 && hour < 22);
+        case 'governorship-sunday': // Governorship Sunday: Sunday 2pm-6pm (14-18)
+            return (day === 0 && hour >= 14 && hour < 18);
+        default:
+            return false;
+    }
+}
 
+// Format the allowed hours message for each report type
+function getAllowedHoursMessage(reportType) {
+    switch(reportType) {
+        case 'bacenta':
+            return 'Friday between 6pm and 10pm EAT';
+        case 'bacenta-sunday':
+            return 'Sunday between 2pm and 6pm EAT';
+        case 'basonta-midweek':
+            return 'Wednesday between 6pm and 10pm EAT';
+        case 'basonta-sunday':
+            return 'Sunday between 2pm and 6pm EAT';
+        case 'governorship-midweek':
+            return 'Thursday between 8pm and 10pm EAT';
+        case 'governorship-sunday':
+            return 'Sunday between 2pm and 6pm EAT';
+        default:
+            return 'its allowed hours';
+    }
+}
+
+// Format current time for display in user-friendly way
+function getCurrentEATFormatted() {
+    const eatNow = getEATTime();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayName = dayNames[eatNow.getUTCDay()];
+    let hours = eatNow.getUTCHours();
+    const minutes = eatNow.getUTCMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${dayName}, ${hours}:${minutes} ${ampm} EAT`;
+}
+
+// ================= PASSWORD =================
+function checkPassword() {
+    const pwd = document.getElementById('passwordInput').value;
+    if (pwd === USER_PASSWORD) {
+        document.getElementById('passwordModal').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'flex';
+        document.getElementById('chatInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('chatInput').focus();
+    } else {
+        document.getElementById('pwdError').innerHTML = 'Incorrect password';
+    }
+}
+
+// ================= CHAT UI =================
 function addMessage(text, isUser = false, isTyping = false) {
+    const container = document.getElementById('chatContainer');
     const div = document.createElement('div');
     div.className = `message ${isUser ? 'user' : 'ai'}`;
     if (isTyping) {
@@ -408,8 +572,8 @@ function addMessage(text, isUser = false, isTyping = false) {
     } else {
         div.innerHTML = `<div class="bubble">${text}</div>`;
     }
-    chatContainer.appendChild(div);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
     return div;
 }
 
@@ -424,33 +588,88 @@ async function showTypingAndWait(ms = 600) {
     removeTyping();
 }
 
-function enableChat() {
-    chatInput.disabled = false;
-    sendBtn.disabled = false;
-    chatInput.focus();
-}
-
+// ================= REPORT SELECTION (WITH TIME CHECK) =================
 function startReport(type) {
-    currentReportType = type;
-    currentStep = 0;
-    collectedData = {};
-    
+    // Get report name for display
     let reportName = '';
     switch(type) {
-        case 'bacenta': reportName = 'Bacenta Report'; break;
+        case 'bacenta': reportName = 'Bacenta Friday Fellowship Report'; break;
+        case 'bacenta-sunday': reportName = 'Bacenta Sunday Service Report'; break;
         case 'basonta-midweek': reportName = 'Basonta Midweek Report'; break;
         case 'basonta-sunday': reportName = 'Basonta Sunday Report'; break;
         case 'governorship-midweek': reportName = 'Governorship Midweek Report'; break;
         case 'governorship-sunday': reportName = 'Governorship Sunday Report'; break;
+        default: reportName = 'Report';
     }
+    
+    // TIME CHECK: Verify if submission is allowed for this report type
+    if (!isReportAllowed(type)) {
+        const allowedHours = getAllowedHoursMessage(type);
+        const currentTimeStr = getCurrentEATFormatted();
+        const timeMessage = `⏰ ${reportName} can only be submitted on ${allowedHours}.\n\n📍 Current time: ${currentTimeStr}\n\nPlease try again during the allowed submission window.`;
+        addMessage(timeMessage, false);
+        return; // Stop here - do not proceed with the report flow
+    }
+    
+    // If time check passes, proceed normally
+    currentReportType = type;
+    currentStep = 0;
+    collectedData = {};
     
     addMessage(reportName, true);
     showTypingAndWait().then(() => {
         askNextQuestion();
-        enableChat();
     });
 }
 
+// ================= LEADER DROPDOWN (ALL LEADERS) =================
+function createLeaderDropdown() {
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    
+    const select = document.createElement('select');
+    select.className = 'form-select';
+    select.innerHTML = '<option value="">-- Select Leader --</option>';
+    
+    LEADERS_LIST.forEach(leader => {
+        const option = document.createElement('option');
+        option.value = leader;
+        option.textContent = leader;
+        select.appendChild(option);
+    });
+    
+    const otherOption = document.createElement('option');
+    otherOption.value = 'other';
+    otherOption.textContent = '➕ Other (Add New Leader)';
+    select.appendChild(otherOption);
+    
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.placeholder = 'Enter new leader name';
+    textInput.className = 'form-input';
+    textInput.style.display = 'none';
+    
+    select.onchange = () => {
+        if (select.value === 'other') {
+            textInput.style.display = 'block';
+        } else {
+            textInput.style.display = 'none';
+            textInput.value = '';
+        }
+    };
+    
+    container.appendChild(select);
+    container.appendChild(textInput);
+    
+    return { container, select, textInput, getValue: () => {
+        if (select.value === 'other') {
+            return textInput.value.trim();
+        }
+        return select.value;
+    } };
+}
+
+// ================= ASK QUESTION =================
 function askNextQuestion() {
     const flow = REPORT_FLOWS[currentReportType];
     if (!flow || currentStep >= flow.length) {
@@ -461,58 +680,51 @@ function askNextQuestion() {
     const step = flow[currentStep];
     addMessage(step.question, false);
     
+    const container = document.getElementById('chatContainer');
+    
     if (step.type === 'select') {
-        const chipsDiv = document.createElement('div');
-        chipsDiv.className = 'chips';
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'options-grid';
         step.options.forEach(opt => {
-            const chip = document.createElement('div');
-            chip.className = 'chip';
-            chip.textContent = opt;
-            chip.onclick = () => {
+            const btn = document.createElement('div');
+            btn.className = 'option-btn';
+            btn.textContent = opt;
+            btn.onclick = () => {
                 collectedData[step.field] = opt;
                 addMessage(opt, true);
-                chipsDiv.remove();
+                optionsDiv.remove();
                 currentStep++;
                 askNextQuestion();
             };
-            chipsDiv.appendChild(chip);
+            optionsDiv.appendChild(btn);
         });
-        chatContainer.appendChild(chipsDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        container.appendChild(optionsDiv);
+        container.scrollTop = container.scrollHeight;
         isAwaitingResponse = true;
     }
     else if (step.type === 'leader') {
-        const chipsDiv = document.createElement('div');
-        chipsDiv.className = 'chips';
-        LEADERS_LIST.slice(0, 6).forEach(leader => {
-            const chip = document.createElement('div');
-            chip.className = 'chip';
-            chip.textContent = leader;
-            chip.onclick = () => {
-                collectedData[step.field] = leader;
-                addMessage(leader, true);
-                chipsDiv.remove();
+        const { container: leaderContainer, getValue } = createLeaderDropdown();
+        
+        const submitBtn = document.createElement('div');
+        submitBtn.className = 'action-btn';
+        submitBtn.textContent = '✓ Confirm Selection';
+        submitBtn.onclick = () => {
+            const value = getValue();
+            if (value) {
+                collectedData[step.field] = value;
+                addMessage(value, true);
+                leaderContainer.remove();
+                submitBtn.remove();
                 currentStep++;
                 askNextQuestion();
-            };
-            chipsDiv.appendChild(chip);
-        });
-        const otherChip = document.createElement('div');
-        otherChip.className = 'chip';
-        otherChip.textContent = 'Add New Leader';
-        otherChip.onclick = () => {
-            const newName = prompt('Enter the new leader name:');
-            if (newName && newName.trim()) {
-                collectedData[step.field] = newName.trim();
-                addMessage(newName.trim(), true);
-                chipsDiv.remove();
-                currentStep++;
-                askNextQuestion();
+            } else {
+                alert('Please select or enter a leader name');
             }
         };
-        chipsDiv.appendChild(otherChip);
-        chatContainer.appendChild(chipsDiv);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        container.appendChild(leaderContainer);
+        container.appendChild(submitBtn);
+        container.scrollTop = container.scrollHeight;
         isAwaitingResponse = true;
     }
     else if (step.type === 'number') {
@@ -547,9 +759,9 @@ function askNextQuestion() {
             numPad.appendChild(btn);
         });
         
-        chatContainer.appendChild(input);
-        chatContainer.appendChild(numPad);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        container.appendChild(input);
+        container.appendChild(numPad);
+        container.scrollTop = container.scrollHeight;
         isAwaitingResponse = true;
     }
     else if (step.type === 'file') {
@@ -558,70 +770,113 @@ function askNextQuestion() {
         fileInput.accept = 'image/*';
         fileInput.className = 'form-input';
         
+        const mandatoryNote = document.createElement('div');
+        mandatoryNote.className = 'mandatory-note';
+        mandatoryNote.innerHTML = '⚠️ Photo is required for this report';
+        
+        const progressDiv = document.createElement('div');
+        progressDiv.className = 'progress-container';
+        progressDiv.innerHTML = `
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="uploadProgressFill"></div></div>
+            <div class="progress-text" id="uploadProgressText">Ready to upload</div>
+        `;
+        
+        let uploadCompleted = false;
+        let uploadedUrl = '';
+        
         const uploadBtn = document.createElement('div');
-        uploadBtn.className = 'chip';
-        uploadBtn.textContent = 'Upload Photo';
+        uploadBtn.className = 'action-btn';
+        uploadBtn.textContent = '📸 Upload Photo (Required)';
         uploadBtn.onclick = async () => {
             const file = fileInput.files[0];
             if (!file) {
-                collectedData[step.field] = '';
-                addMessage('No photo', true);
-                fileInput.remove();
-                uploadBtn.remove();
-                currentStep++;
-                askNextQuestion();
+                alert('Please select a photo to upload');
                 return;
             }
             
-            uploadBtn.textContent = 'Uploading...';
+            const progressFill = document.getElementById('uploadProgressFill');
+            const progressText = document.getElementById('uploadProgressText');
+            uploadBtn.disabled = true;
+            uploadBtn.style.opacity = '0.5';
+            
             try {
                 const formData = new FormData();
                 formData.append('image', file);
-                const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
-                const result = await response.json();
-                if (result.success) {
-                    collectedData[step.field] = result.data.url;
-                    addMessage('Photo uploaded', true);
-                } else {
-                    throw new Error('Upload failed');
-                }
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', 'https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY);
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        if (progressFill) progressFill.style.width = percent + '%';
+                        if (progressText) progressText.innerHTML = 'Uploading... ' + percent + '%';
+                    }
+                };
+                
+                const uploadPromise = new Promise((resolve, reject) => {
+                    xhr.onload = () => {
+                        if (xhr.status === 200) {
+                            try {
+                                const result = JSON.parse(xhr.responseText);
+                                if (result.success) resolve(result.data.url);
+                                else reject(new Error('Upload failed'));
+                            } catch(e) { reject(e); }
+                        } else reject(new Error('Upload failed'));
+                    };
+                    xhr.onerror = () => reject(new Error('Network error'));
+                    xhr.send(formData);
+                });
+                
+                uploadedUrl = await uploadPromise;
+                uploadCompleted = true;
+                if (progressFill) progressFill.style.width = '100%';
+                if (progressText) progressText.innerHTML = 'Upload complete!';
+                uploadBtn.textContent = '✅ Photo Uploaded';
+                uploadBtn.style.background = '#10b981';
             } catch(e) {
-                collectedData[step.field] = '';
-                addMessage('Photo upload failed, continuing', true);
+                alert('Upload failed. Please try again with a different photo.');
+                uploadBtn.disabled = false;
+                uploadBtn.style.opacity = '1';
             }
+        };
+        
+        const confirmBtn = document.createElement('div');
+        confirmBtn.className = 'action-btn';
+        confirmBtn.textContent = '✓ Confirm & Continue';
+        confirmBtn.style.background = '#008080';
+        confirmBtn.style.color = 'white';
+        confirmBtn.onclick = () => {
+            if (!uploadCompleted) {
+                alert('Please upload a photo first. Photo is required for this report.');
+                return;
+            }
+            collectedData[step.field] = uploadedUrl;
+            addMessage('📷 Photo uploaded', true);
             fileInput.remove();
+            mandatoryNote.remove();
+            progressDiv.remove();
             uploadBtn.remove();
+            confirmBtn.remove();
             currentStep++;
             askNextQuestion();
         };
         
-        const skipBtn = document.createElement('div');
-        skipBtn.className = 'chip';
-        skipBtn.textContent = 'Skip Photo';
-        skipBtn.onclick = () => {
-            collectedData[step.field] = '';
-            addMessage('No photo', true);
-            fileInput.remove();
-            uploadBtn.remove();
-            skipBtn.remove();
-            currentStep++;
-            askNextQuestion();
-        };
-        
-        chatContainer.appendChild(fileInput);
-        chatContainer.appendChild(uploadBtn);
-        chatContainer.appendChild(skipBtn);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        container.appendChild(fileInput);
+        container.appendChild(mandatoryNote);
+        container.appendChild(progressDiv);
+        container.appendChild(uploadBtn);
+        container.appendChild(confirmBtn);
+        container.scrollTop = container.scrollHeight;
         isAwaitingResponse = true;
     }
     else {
         const input = document.createElement('input');
         input.type = 'text';
-        input.placeholder = `Enter value...`;
+        input.placeholder = 'Enter value...';
         input.className = 'form-input';
         
         const submitBtn = document.createElement('div');
-        submitBtn.className = 'chip';
+        submitBtn.className = 'action-btn';
         submitBtn.textContent = 'Submit';
         submitBtn.onclick = () => {
             const val = input.value.trim();
@@ -637,9 +892,9 @@ function askNextQuestion() {
             }
         };
         
-        chatContainer.appendChild(input);
-        chatContainer.appendChild(submitBtn);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        container.appendChild(input);
+        container.appendChild(submitBtn);
+        container.scrollTop = container.scrollHeight;
         isAwaitingResponse = true;
     }
 }
@@ -652,19 +907,35 @@ function getCurrentDate() {
 function showReceipt() {
     let summary = '';
     let submitData = {};
+    let dashboardType = '';
     const currentDate = getCurrentDate();
     
     if (currentReportType === 'bacenta') {
+        dashboardType = 'bacenta';
         submitData = {
             Leader: collectedData.leaderName,
             Governorship: collectedData.governorship,
             'Fellowship Attendance': collectedData.fellowshipAttendance || 0,
+            'First Timers': collectedData.firstTimers || 0,
+            'New Converts': collectedData.newConverts || 0,
             Offering: collectedData.offering || 0,
+            'Submission Type': 'midweek',
             'Selfie URL': collectedData.photo || ''
         };
-        summary = `BACENTA REPORT\nLeader: ${collectedData.leaderName}\nGovernorship: ${collectedData.governorship}\nFellowship Attendance: ${collectedData.fellowshipAttendance || 0}\nOffering: KES ${collectedData.offering || 0}\nDate: ${currentDate}`;
+        summary = `BACENTA FRIDAY FELLOWSHIP\nLeader: ${collectedData.leaderName}\nGovernorship: ${collectedData.governorship}\nFellowship Attendance: ${collectedData.fellowshipAttendance || 0}\nFirst Timers: ${collectedData.firstTimers || 0}\nNew Converts: ${collectedData.newConverts || 0}\nOffering: KES ${collectedData.offering || 0}\nDate: ${currentDate}`;
+    }
+    else if (currentReportType === 'bacenta-sunday') {
+        dashboardType = 'bacenta';
+        submitData = {
+            Leader: collectedData.leaderName,
+            Governorship: collectedData.governorship,
+            'Service Attendance': collectedData.serviceAttendance || 0,
+            'Submission Type': 'sunday'
+        };
+        summary = `BACENTA SUNDAY SERVICE\nLeader: ${collectedData.leaderName}\nGovernorship: ${collectedData.governorship}\nService Attendance: ${collectedData.serviceAttendance || 0}\nDate: ${currentDate}`;
     }
     else if (currentReportType === 'basonta-midweek') {
+        dashboardType = 'basonta';
         submitData = {
             'Basonta Name': collectedData.basontaName,
             Leader: collectedData.leaderName,
@@ -679,6 +950,7 @@ function showReceipt() {
         summary = `BASONTA MIDWEEK\nBasonta: ${collectedData.basontaName}\nLeader: ${collectedData.leaderName}\nGovernorship: ${collectedData.governorship}\nTotal Attendance: ${collectedData.totalAttendance || 0}\nNew Converts: ${collectedData.newConverts || 0}\nFirst Timers: ${collectedData.firstTimers || 0}\nOffering: KES ${collectedData.offering || 0}\nDate: ${currentDate}`;
     }
     else if (currentReportType === 'basonta-sunday') {
+        dashboardType = 'basonta';
         submitData = {
             'Basonta Name': collectedData.basontaName,
             'Sonta Leader': collectedData.sontaLeader,
@@ -689,13 +961,10 @@ function showReceipt() {
             'Deep Sea Fishing': collectedData.deepSeaFishing || 0,
             'Selfie URL': collectedData.photo || ''
         };
-        const meeting = String(collectedData.meetingAttendance || 0).padStart(2,'0');
-        const stage = String(collectedData.stageAttendance || 0).padStart(2,'0');
-        const church = String(collectedData.churchAttendance || 0).padStart(2,'0');
-        const deepSea = String(collectedData.deepSeaFishing || 0).padStart(2,'0');
-        summary = `BASONTA SUNDAY\nBasonta: ${collectedData.basontaName}\nSonta Leader: ${collectedData.sontaLeader}\nMeeting Attendance: ${meeting}\nStage Attendance: ${stage}\nChurch Attendance: ${church}\nDeep Sea Fishing: ${deepSea}\nDate: ${currentDate}`;
+        summary = `BASONTA SUNDAY\nBasonta: ${collectedData.basontaName}\nSonta Leader: ${collectedData.sontaLeader}\nMeeting Attendance: ${String(collectedData.meetingAttendance || 0).padStart(2,'0')}\nStage Attendance: ${String(collectedData.stageAttendance || 0).padStart(2,'0')}\nChurch Attendance: ${String(collectedData.churchAttendance || 0).padStart(2,'0')}\nDeep Sea Fishing: ${String(collectedData.deepSeaFishing || 0).padStart(2,'0')}\nDate: ${currentDate}`;
     }
     else if (currentReportType === 'governorship-midweek') {
+        dashboardType = 'governorship';
         submitData = {
             Governorship: collectedData.governorship,
             Pastor: collectedData.pastorName,
@@ -705,69 +974,88 @@ function showReceipt() {
             'New Converts': collectedData.newConverts || 0,
             'Message Preached': collectedData.messagePreached,
             Offering: collectedData.offering || 0,
-            'Crowd Photo URL': collectedData.photo || ''
+            'Crowd Photo URL': collectedData.photo || '',
+            'Submission Type': 'midweek'
         };
         summary = `GOVERNORSHIP MIDWEEK\nGovernorship: ${collectedData.governorship}\nPastor: ${collectedData.pastorName}\nPreacher: ${collectedData.preacherName}\nMidweek Attendance: ${collectedData.midweekAttendance || 0}\nFirst Timers: ${collectedData.firstTimers || 0}\nNew Converts: ${collectedData.newConverts || 0}\nMessage: ${collectedData.messagePreached}\nOffering: KES ${collectedData.offering || 0}\nDate: ${currentDate}`;
     }
     else {
+        dashboardType = 'governorship';
         submitData = {
             Governorship: collectedData.governorship,
             'Bus Attendance': collectedData.busAttendance || 0,
             'Walk-ins': collectedData.walkins || 0,
             'Total First Timers': collectedData.totalFirstTimers || 0,
-            'Total Attendance': collectedData.totalAttendance || 0
+            'Total Attendance': collectedData.totalAttendance || 0,
+            'Submission Type': 'sunday'
         };
         summary = `GOVERNORSHIP SUNDAY\nGovernorship: ${collectedData.governorship}\nBus Attendance: ${collectedData.busAttendance || 0}\nWalk-ins: ${collectedData.walkins || 0}\nTotal First Timers: ${collectedData.totalFirstTimers || 0}\nTotal Attendance: ${collectedData.totalAttendance || 0}\nDate: ${currentDate}`;
     }
     
     addMessage('Here is your report summary:', false);
     
+    const container = document.getElementById('chatContainer');
     const receiptDiv = document.createElement('div');
-    receiptDiv.className = 'receipt';
+    receiptDiv.className = 'receipt-card';
     receiptDiv.innerHTML = `
         <div class="receipt-title">Submission Receipt</div>
         <div class="receipt-line">${summary.replace(/\n/g, '<br>')}</div>
         <div class="receipt-actions">
-            <button class="copy-btn" onclick="copyToClipboard('${summary.replace(/'/g, "\\'")}')">Copy for WhatsApp</button>
-            <button class="submit-btn" id="finalSubmitBtn">Submit Report</button>
+            <button class="copy-btn" id="receiptCopyBtn">Copy for WhatsApp</button>
+            <button class="copy-btn" id="receiptSubmitBtn" style="background:#008080; color:white;">Submit Report</button>
         </div>
     `;
-    chatContainer.appendChild(receiptDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    container.appendChild(receiptDiv);
+    container.scrollTop = container.scrollHeight;
     
-    document.getElementById('finalSubmitBtn').onclick = () => submitReport(submitData);
+    document.getElementById('receiptCopyBtn').onclick = () => {
+        navigator.clipboard.writeText(summary);
+        document.getElementById('receiptCopyBtn').textContent = 'Copied!';
+        setTimeout(() => document.getElementById('receiptCopyBtn').textContent = 'Copy for WhatsApp', 2000);
+    };
+    
+    document.getElementById('receiptSubmitBtn').onclick = () => submitReport(submitData, dashboardType);
 }
 
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-    alert('Copied to clipboard');
-}
-
-async function submitReport(data) {
-    const submitBtn = document.getElementById('finalSubmitBtn');
+async function submitReport(data, dashboardType) {
+    const submitBtn = document.getElementById('receiptSubmitBtn');
     if (submitBtn) {
         submitBtn.textContent = 'Submitting...';
         submitBtn.disabled = true;
     }
     
+    const params = new URLSearchParams();
+    params.append('action', 'write');
+    params.append('type', dashboardType);
+    params.append('sheet', 'Sheet1');
+    
+    for (let [key, value] of Object.entries(data)) {
+        if (value !== undefined && value !== null && value !== '') {
+            params.append(key, value);
+        }
+    }
+    
     try {
-        const result = await saveData(data, 'basonta', 'Sheet1');
-        if (result.success) {
-            addMessage('Report submitted successfully. Your data has been saved.', false);
+        const response = await fetch(API_URL + '?' + params.toString());
+        const text = await response.text();
+        
+        if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+            addMessage('✅ Report submitted successfully! Your data has been saved.', false);
             addMessage('Would you like to submit another report?', false);
             
             const chipsDiv = document.createElement('div');
-            chipsDiv.className = 'chips';
+            chipsDiv.className = 'options-grid';
             const types = [
-                { name: 'Bacenta Report', type: 'bacenta' },
-                { name: 'Basonta Midweek Report', type: 'basonta-midweek' },
-                { name: 'Basonta Sunday Report', type: 'basonta-sunday' },
-                { name: 'Governorship Midweek Report', type: 'governorship-midweek' },
-                { name: 'Governorship Sunday Report', type: 'governorship-sunday' }
+                { name: 'Bacenta Friday Fellowship', type: 'bacenta' },
+                { name: 'Bacenta Sunday Service', type: 'bacenta-sunday' },
+                { name: 'Basonta Midweek', type: 'basonta-midweek' },
+                { name: 'Basonta Sunday', type: 'basonta-sunday' },
+                { name: 'Governorship Midweek', type: 'governorship-midweek' },
+                { name: 'Governorship Sunday', type: 'governorship-sunday' }
             ];
             types.forEach(t => {
                 const chip = document.createElement('div');
-                chip.className = 'chip';
+                chip.className = 'option-btn';
                 chip.textContent = t.name;
                 chip.onclick = () => {
                     startReport(t.type);
@@ -775,58 +1063,34 @@ async function submitReport(data) {
                 };
                 chipsDiv.appendChild(chip);
             });
-            chatContainer.appendChild(chipsDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            document.getElementById('chatContainer').appendChild(chipsDiv);
         } else {
-            addMessage('Submission failed. Please try again.', false);
+            addMessage('❌ Submission failed. Please try again.', false);
         }
     } catch(error) {
-        addMessage('Network error. Queuing report for later.', false);
-        pendingQueue.push(data);
-        localStorage.setItem('pendingReports', JSON.stringify(pendingQueue));
-        document.getElementById('offlineBanner').classList.add('show');
-        setTimeout(() => document.getElementById('offlineBanner').classList.remove('show'), 3000);
+        addMessage('❌ Network error. Please check your connection.', false);
     }
 }
 
 function sendMessage() {
-    const text = chatInput.value.trim();
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
     if (!text || isAwaitingResponse) return;
     
     addMessage(text, true);
-    chatInput.value = '';
+    input.value = '';
     
     showTypingAndWait().then(() => {
         addMessage('Please select a report type from the options above.', false);
     });
 }
 
-function startVoiceInput() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert('Voice input is not supported in this browser');
-        return;
-    }
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        chatInput.value = text;
+document.getElementById('chatInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
         sendMessage();
-    };
-    recognition.start();
-}
-
-window.addEventListener('online', async () => {
-    const pending = localStorage.getItem('pendingReports');
-    if (pending) {
-        const reports = JSON.parse(pending);
-        for (const report of reports) {
-            await saveData(report, 'basonta', 'Sheet1');
-        }
-        localStorage.removeItem('pendingReports');
-        addMessage('All pending reports have been synced to the cloud.', false);
     }
 });
+
 </script>
 </body>
 </html>
