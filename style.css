@@ -319,6 +319,55 @@ th {
     background: #1e293b;
 }
 
+/* Password Show/Hide Styles (Google-like) */
+.password-container {
+    position: relative;
+    margin: 15px 0;
+    width: 100%;
+}
+
+.password-container input {
+    width: 100%;
+    padding: 12px;
+    padding-right: 45px;
+    border-radius: 10px;
+    border: 1px solid #2a5a5a;
+    background: #0f172a;
+    color: white;
+    font-size: 14px;
+    box-sizing: border-box;
+    margin-top: 0;
+}
+
+.password-container input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    width: auto;
+}
+
+.toggle-password:hover {
+    color: #fbbf24;
+    background: transparent;
+}
+
 @media (max-width: 768px) {
     body {
         padding: 10px;

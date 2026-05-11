@@ -10,7 +10,9 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="logo.jpeg">
     <title>The Scribe - AI Reporting Assistant</title>
+    <link rel="stylesheet" href="style.css">
     <style>
+        /* Additional styles specific to Scribe that complement style.css */
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
@@ -21,6 +23,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            padding: 0;
         }
 
         .header {
@@ -316,6 +319,7 @@
             font-size: 18px;
         }
 
+        /* Password Modal - Override style.css for scribe specific */
         .modal {
             display: flex;
             position: fixed;
@@ -338,14 +342,58 @@
             border: 1px solid #FFBF00;
         }
 
-        .modal-content input {
+        .modal-content h3 {
+            color: #FFBF00;
+            margin-bottom: 10px;
+            margin-top: 0;
+        }
+
+        .password-container {
+            position: relative;
+            margin: 15px 0;
+            width: 100%;
+        }
+
+        .password-container input {
             width: 100%;
             padding: 12px;
-            margin: 15px 0;
+            padding-right: 45px;
             border-radius: 10px;
             border: 1px solid #2a5a5a;
             background: #1a3a3a;
             color: white;
+            font-size: 14px;
+            box-sizing: border-box;
+            margin-top: 0;
+        }
+
+        .password-container input:focus {
+            outline: none;
+            border-color: #FFBF00;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+            width: auto;
+        }
+
+        .toggle-password:hover {
+            color: #FFBF00;
+            background: transparent;
         }
 
         .modal-content button {
@@ -375,8 +423,11 @@
 
 <div id="passwordModal" class="modal">
     <div class="modal-content">
-        <h3 style="color:#FFBF00;">Enter Password</h3>
-        <input type="password" id="passwordInput" placeholder="Password" onkeypress="if(event.keyCode===13) checkPassword()">
+        <h3>Enter Password</h3>
+        <div class="password-container">
+            <input type="password" id="passwordInput" placeholder="Password" onkeypress="if(event.keyCode===13) checkPassword()">
+            <span class="toggle-password" onclick="togglePasswordVisibility()">👁️</span>
+        </div>
         <button onclick="checkPassword()">Access Assistant</button>
         <div id="pwdError" class="error-msg"></div>
     </div>
@@ -416,6 +467,7 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbzna2NUEmqrQ3oVO2SyjJ2Vawiz7PWcUZQXcRAQwJ1iFG8XbGepT9RFmRGGVJFXgJNWhQ/exec';
 const IMGBB_API_KEY = '107609db4a711a802f096fe2de2c3ce8';
 const USER_PASSWORD = 'User123';
+const TEST_MODE = true;  // Set to false for production (enables time restrictions)
 
 let currentReportType = null;
 let currentStep = 0;
@@ -480,6 +532,22 @@ const REPORT_FLOWS = {
         { field: 'totalAttendance', question: 'What is the Total Attendance?', type: 'number' }
     ]
 };
+
+// ================= PASSWORD TOGGLE =================
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('passwordInput');
+    const toggleBtn = document.querySelector('.toggle-password');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = '🙈';
+        toggleBtn.style.color = '#FFBF00';
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = '👁️';
+        toggleBtn.style.color = '#9ca3af';
+    }
+}
 
 // ================= TIME RULES (EAT - UTC+3) =================
 // Get current time in East African Time (UTC+3)
@@ -588,7 +656,7 @@ async function showTypingAndWait(ms = 600) {
     removeTyping();
 }
 
-// ================= REPORT SELECTION (WITH TIME CHECK) =================
+// ================= REPORT SELECTION (WITH TIME CHECK & TEST MODE) =================
 function startReport(type) {
     // Get report name for display
     let reportName = '';
@@ -603,7 +671,8 @@ function startReport(type) {
     }
     
     // TIME CHECK: Verify if submission is allowed for this report type
-    if (!isReportAllowed(type)) {
+    // TEST_MODE = true bypasses time restrictions, false enforces them
+    if (!TEST_MODE && !isReportAllowed(type)) {
         const allowedHours = getAllowedHoursMessage(type);
         const currentTimeStr = getCurrentEATFormatted();
         const timeMessage = `⏰ ${reportName} can only be submitted on ${allowedHours}.\n\n📍 Current time: ${currentTimeStr}\n\nPlease try again during the allowed submission window.`;
@@ -611,7 +680,7 @@ function startReport(type) {
         return; // Stop here - do not proceed with the report flow
     }
     
-    // If time check passes, proceed normally
+    // If time check passes (or TEST_MODE is true), proceed normally
     currentReportType = type;
     currentStep = 0;
     collectedData = {};
@@ -833,6 +902,8 @@ function askNextQuestion() {
                 if (progressText) progressText.innerHTML = 'Upload complete!';
                 uploadBtn.textContent = '✅ Photo Uploaded';
                 uploadBtn.style.background = '#10b981';
+                uploadBtn.disabled = false;
+                uploadBtn.style.opacity = '1';
             } catch(e) {
                 alert('Upload failed. Please try again with a different photo.');
                 uploadBtn.disabled = false;
@@ -1022,6 +1093,7 @@ async function submitReport(data, dashboardType) {
     if (submitBtn) {
         submitBtn.textContent = 'Submitting...';
         submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
     }
     
     const params = new URLSearchParams();
@@ -1040,6 +1112,15 @@ async function submitReport(data, dashboardType) {
         const text = await response.text();
         
         if (text.indexOf('Success') !== -1 || text.indexOf('success') !== -1) {
+            // Update button to show success
+            if (submitBtn) {
+                submitBtn.textContent = '✅ Submitted!';
+                submitBtn.style.background = '#10b981';
+                submitBtn.style.color = 'white';
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+            }
+            
             addMessage('✅ Report submitted successfully! Your data has been saved.', false);
             addMessage('Would you like to submit another report?', false);
             
@@ -1060,14 +1141,32 @@ async function submitReport(data, dashboardType) {
                 chip.onclick = () => {
                     startReport(t.type);
                     chipsDiv.remove();
+                    // Reset submit button in case user starts a new report
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Submit Report';
+                        submitBtn.style.background = '#008080';
+                        submitBtn.style.color = 'white';
+                    }
                 };
                 chipsDiv.appendChild(chip);
             });
             document.getElementById('chatContainer').appendChild(chipsDiv);
         } else {
+            // Reset button on failure
+            if (submitBtn) {
+                submitBtn.textContent = 'Submit Report';
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+            }
             addMessage('❌ Submission failed. Please try again.', false);
         }
     } catch(error) {
+        // Reset button on error
+        if (submitBtn) {
+            submitBtn.textContent = 'Submit Report';
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+        }
         addMessage('❌ Network error. Please check your connection.', false);
     }
 }
